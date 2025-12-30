@@ -296,10 +296,29 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self.data)
 
     def clear_manual_override(self) -> None:
-        """Clear manual override mode."""
+        """Clear manual override mode and apply current schedule state."""
         self._manual_override_end = None
-        self.hass.async_create_task(self.async_recalculate_schedule())
+        self.hass.async_create_task(self._apply_current_schedule_state())
         self.async_set_updated_data(self.data)
+
+    async def _apply_current_schedule_state(self) -> None:
+        """Recalculate schedule and immediately apply the correct temperature."""
+        await self.async_recalculate_schedule()
+
+        # Check if we're currently in a heating slot
+        now = dt_util.now()
+        in_heating_slot = False
+        for slot in self._schedule:
+            if slot.start <= now < slot.end:
+                in_heating_slot = True
+                break
+
+        if in_heating_slot:
+            _LOGGER.info("Manual override cleared - currently in heating slot, starting heating")
+            await self._start_heating()
+        else:
+            _LOGGER.info("Manual override cleared - not in heating slot, setting idle temperature")
+            await self._end_heating()
 
     async def _hourly_update(self, now: datetime) -> None:
         """Perform hourly schedule update."""
