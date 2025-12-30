@@ -68,16 +68,24 @@ All settings can be adjusted in real-time through Home Assistant number entities
 
 ### HACS (Recommended)
 
-1. Add this repository to HACS as a custom repository
-2. Search for "Smart Spa Heating" and install
-3. Restart Home Assistant
-4. Add the integration via Settings → Devices & Services → Add Integration
+1. Open **HACS** in Home Assistant
+2. Click the **3 dots** menu (top right) → **Custom repositories**
+3. Add the repository:
+   - **Repository:** `https://github.com/zteifel/smart-spa-heating`
+   - **Category:** `Integration`
+   - Click **Add**
+4. Search for "Smart Spa Heating" in HACS and click **Download**
+5. **Restart Home Assistant**
+6. Go to **Settings → Devices & Services → Add Integration**
+7. Search for "Smart Spa Heating" and configure with your Nordpool and climate entities
 
 ### Manual
 
-1. Copy the `smart_spa_heating` folder to your `custom_components` directory
-2. Restart Home Assistant
-3. Add the integration via Settings → Devices & Services → Add Integration
+1. Download or clone this repository
+2. Copy the `smart_spa_heating` folder to your `config/custom_components` directory
+3. Restart Home Assistant
+4. Go to **Settings → Devices & Services → Add Integration**
+5. Search for "Smart Spa Heating" and configure
 
 ## ApexCharts Configuration
 
