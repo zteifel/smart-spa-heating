@@ -112,61 +112,77 @@ type: custom:apexcharts-card
 header:
   show: true
   title: Spa Heating Schedule
-  show_states: true
-graph_span: 24h
+graph_span: 48h
 span:
-  start: hour
+  start: minute
 now:
-  show: true
+  show: false
   label: Now
 yaxis:
-  - id: temp
-    min: 15
-    max: 42
-    decimals: 0
-    apex_config:
-      title:
-        text: "°C"
   - id: price
-    opposite: true
-    min: 0
+    opposite: false
     decimals: 2
     apex_config:
-      title:
-        text: "Price"
+      forceNiceScale: true
+  - id: temp
+    opposite: true
+    min: 30
+    max: 40
+    align_to: 100
+    apex_config:
+      tickAmount: 4
 series:
-  - entity: sensor.smart_spa_heating_planned_temperature
-    name: Planned Temp
-    yaxis_id: temp
-    type: line
-    stroke_width: 2
-    color: orange
-    data_generator: |
-      return entity.attributes.data || [];
   - entity: sensor.nordpool_kwh_se3_sek_3_10_025
-    name: Electricity Price
+    type: line
     yaxis_id: price
-    type: area
-    stroke_width: 1
-    color: steelblue
-    opacity: 0.3
+    name: Price
+    float_precision: 2
+    color_threshold:
+      - value: -1
+        color: cyan
+      - value: 1.5
+        color: green
+      - value: 2.5
+        color: orange
+      - value: 3.5
+        color: red
+      - value: 5
+        color: black
+    data_generator: >
+      let td = entity.attributes.raw_today; let tm =
+      entity.attributes.raw_tomorrow; const repeatLast = (x) => [new
+      Date(x.at(-1)[0]).getTime()+3600000, x.at(-1)[1]]; let dataset = [
+        ...td.map((data, index) => {
+          return [data["start"], data["value"]];
+        }),
+        ...tm.map((data, index) => { 
+          return [data["start"], data["value"]];
+        })
+      ]; return [...dataset, repeatLast(dataset)];
+  - entity: sensor.smart_spa_heating_planned_temperature
+    yaxis_id: temp
     data_generator: |
-      const today = entity.attributes.today || [];
-      const tomorrow = entity.attributes.tomorrow || [];
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const data = [];
-      today.forEach((price, i) => {
-        data.push([start.getTime() + i * 15 * 60 * 1000, price]);
-      });
-      if (tomorrow.length > 0) {
-        const tomorrowStart = new Date(start);
-        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-        tomorrow.forEach((price, i) => {
-          data.push([tomorrowStart.getTime() + i * 15 * 60 * 1000, price]);
-        });
-      }
-      return data;
+      return entity.attributes.data;
+    curve: stepline
+    stroke_width: 2
+    color_threshold:
+      - value: -2
+        color: white
+      - value: 35
+        color: blue
+      - value: 37
+        color: red
+    name: Planned Temperature
+apex_config:
+  chart:
+    height: 250
+  xaxis:
+    type: datetime
+    labels:
+      datetimeFormatter:
+        hour: HH:mm
+experimental:
+  color_threshold: true
 ```
 
 **Note:** Replace `sensor.nordpool_kwh_se3_sek_3_10_025` with your actual Nordpool sensor entity ID.
