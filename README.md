@@ -105,6 +105,8 @@ You can visualize the heating schedule using [ApexCharts Card](https://github.co
 
 The integration provides a `sensor.smart_spa_heating_planned_temperature` entity with a `data` attribute containing timestamp/temperature pairs for graphing.
 
+![](./pictures/apex_chart.png)
+
 ### Example Card Configuration
 
 ```yaml
