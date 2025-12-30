@@ -55,12 +55,12 @@ All settings can be adjusted in real-time through Home Assistant number entities
 
 | Setting | Range | Default | Description |
 |---------|-------|---------|-------------|
-| **Heating Frequency** | 1-48 hours | 12 | Maximum time between heating sessions. The algorithm ensures heating occurs at least this often. |
-| **Heating Duration** | 15-240 minutes | 60 | Duration of each scheduled heating session. |
-| **Price Threshold** | 0-10 | 0.05 | Always heat when price is below this value. Uses same unit as your price entity. |
-| **High Price Threshold** | 0-100 | 5.0 | Never heat when price is above this value. Uses same unit as your price entity. |
-| **Heating Temperature** | 20-42°C | 38 | Target temperature when actively heating. |
-| **Idle Temperature** | 5-42°C | 20 | Target temperature when not heating (maintains minimal heating). |
+| **Heating Frequency** | 1-48 hours | 3 | Maximum time between heating sessions. The algorithm ensures heating occurs at least this often. |
+| **Heating Duration** | 15-240 minutes | 45 | Duration of each scheduled heating session. |
+| **Price Threshold** | 0-10 | 1.5 | Always heat when price is below this value. Uses same unit as your price entity. |
+| **High Price Threshold** | 0-100 | 3.0 | Never heat when price is above this value. Uses same unit as your price entity. |
+| **Heating Temperature** | 20-42°C | 37.5 | Target temperature when actively heating. |
+| **Idle Temperature** | 5-42°C | 35 | Target temperature when not heating (maintains minimal heating). |
 | **Manual Override Duration** | 1-12 hours | 3 | How long to respect manual temperature changes before resuming automatic control. |
 
 ## Installation

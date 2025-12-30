@@ -15,12 +15,12 @@ CONF_IDLE_TEMPERATURE: Final = "idle_temperature"
 CONF_MANUAL_OVERRIDE_DURATION: Final = "manual_override_duration"
 
 # Default values
-DEFAULT_HEATING_FREQUENCY: Final = 12  # hours
-DEFAULT_HEATING_DURATION: Final = 60  # minutes
-DEFAULT_PRICE_THRESHOLD: Final = 0.05  # currency agnostic - always heat below this
-DEFAULT_HIGH_PRICE_THRESHOLD: Final = 5.0  # currency agnostic - never heat above this
-DEFAULT_HEATING_TEMPERATURE: Final = 38.0  # °C
-DEFAULT_IDLE_TEMPERATURE: Final = 20.0  # °C
+DEFAULT_HEATING_FREQUENCY: Final = 3  # hours
+DEFAULT_HEATING_DURATION: Final = 45  # minutes
+DEFAULT_PRICE_THRESHOLD: Final = 1.5  # currency agnostic - always heat below this
+DEFAULT_HIGH_PRICE_THRESHOLD: Final = 3.0  # currency agnostic - never heat above this
+DEFAULT_HEATING_TEMPERATURE: Final = 37.5  # °C
+DEFAULT_IDLE_TEMPERATURE: Final = 35.0  # °C
 DEFAULT_MANUAL_OVERRIDE_DURATION: Final = 3  # hours
 
 # Limits
