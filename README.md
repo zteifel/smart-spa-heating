@@ -1,7 +1,7 @@
 # Smart Spa Heating
 
 A Home Assistant custom integration that intelligently schedules spa/hot tub heating based on electricity prices. It optimizes heating times to avoid expensive peak hours while ensuring your spa is always ready when you need it.
-
+<a href="https://www.buymeacoffee.com/zteifel" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 ## Features
 
 - **Price-aware scheduling** with 15-minute granularity
@@ -57,8 +57,8 @@ All settings can be adjusted in real-time through Home Assistant number entities
 |---------|-------|---------|-------------|
 | **Heating Frequency** | 1-48 hours | 3 | Maximum time between heating sessions. The algorithm ensures heating occurs at least this often. |
 | **Heating Duration** | 15-240 minutes | 45 | Duration of each scheduled heating session. |
-| **Price Threshold** | 0-10 | 1.5 | Always heat when price is below this value. Uses same unit as your price entity. |
-| **High Price Threshold** | 0-100 | 3.0 | Never heat when price is above this value. Uses same unit as your price entity. |
+| **Price Threshold** | any | 1.5 | Always heat when price is below this value. Uses same unit as your price entity. |
+| **High Price Threshold** | any | 3.0 | Never heat when price is above this value. Uses same unit as your price entity. |
 | **Heating Temperature** | 20-42°C | 37.5 | Target temperature when actively heating. |
 | **Idle Temperature** | 5-42°C | 35 | Target temperature when not heating (maintains minimal heating). |
 | **Manual Override Duration** | 1-12 hours | 3 | How long to respect manual temperature changes before resuming automatic control. |
