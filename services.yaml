@@ -1,0 +1,23 @@
+force_heat:
+  name: Force Heat
+  description: Force the spa to start heating immediately for the configured duration.
+  target:
+    entity:
+      integration: smart_spa_heating
+      domain: switch
+
+skip_next:
+  name: Skip Next Heating
+  description: Skip the next scheduled heating session.
+  target:
+    entity:
+      integration: smart_spa_heating
+      domain: switch
+
+recalculate:
+  name: Recalculate Schedule
+  description: Force recalculation of the heating schedule.
+  target:
+    entity:
+      integration: smart_spa_heating
+      domain: switch

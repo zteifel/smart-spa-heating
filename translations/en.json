@@ -1,0 +1,135 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select Entities",
+        "description": "Select the Nordpool sensor and climate entity for your spa.",
+        "data": {
+          "nordpool_entity": "Nordpool Sensor",
+          "climate_entity": "Spa Climate Entity"
+        }
+      },
+      "settings": {
+        "title": "Configure Settings",
+        "description": "Configure the heating schedule settings.",
+        "data": {
+          "heating_frequency": "Heating Frequency (hours)",
+          "heating_duration": "Heating Duration (minutes)",
+          "price_threshold": "Price Threshold (always heat below)",
+          "high_price_threshold": "High Price Threshold (never heat above)",
+          "heating_temperature": "Heating Temperature (°C)",
+          "idle_temperature": "Idle Temperature (°C)",
+          "manual_override_duration": "Manual Override Duration (hours)"
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "Entity not found",
+      "invalid_nordpool": "Invalid Nordpool entity - missing 'today' attribute",
+      "idle_temp_too_high": "Idle temperature must be lower than heating temperature"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Settings",
+        "description": "Adjust the heating schedule settings.",
+        "data": {
+          "heating_frequency": "Heating Frequency (hours)",
+          "heating_duration": "Heating Duration (minutes)",
+          "price_threshold": "Price Threshold (always heat below)",
+          "high_price_threshold": "High Price Threshold (never heat above)",
+          "heating_temperature": "Heating Temperature (°C)",
+          "idle_temperature": "Idle Temperature (°C)",
+          "manual_override_duration": "Manual Override Duration (hours)"
+        }
+      }
+    },
+    "error": {
+      "idle_temp_too_high": "Idle temperature must be lower than heating temperature"
+    }
+  },
+  "entity": {
+    "switch": {
+      "smart_heating": {
+        "name": "Smart Heating"
+      }
+    },
+    "sensor": {
+      "next_heating": {
+        "name": "Next Heating"
+      },
+      "heating_schedule": {
+        "name": "Heating Schedule"
+      },
+      "current_price": {
+        "name": "Current Price"
+      },
+      "manual_override_remaining": {
+        "name": "Manual Override Remaining"
+      },
+      "planned_temperature": {
+        "name": "Planned Temperature"
+      }
+    },
+    "binary_sensor": {
+      "heating_active": {
+        "name": "Heating Active"
+      },
+      "manual_override_active": {
+        "name": "Manual Override Active"
+      }
+    },
+    "number": {
+      "heating_frequency": {
+        "name": "Heating Frequency"
+      },
+      "heating_duration": {
+        "name": "Heating Duration"
+      },
+      "price_threshold": {
+        "name": "Price Threshold"
+      },
+      "high_price_threshold": {
+        "name": "High Price Threshold"
+      },
+      "heating_temperature": {
+        "name": "Heating Temperature"
+      },
+      "idle_temperature": {
+        "name": "Idle Temperature"
+      },
+      "manual_override_duration": {
+        "name": "Manual Override Duration"
+      }
+    },
+    "button": {
+      "force_heat_on": {
+        "name": "Force Heat On"
+      },
+      "force_heat_off": {
+        "name": "Force Heat Off"
+      },
+      "clear_manual_override": {
+        "name": "Clear Manual Override"
+      }
+    }
+  },
+  "services": {
+    "force_heat": {
+      "name": "Force Heat",
+      "description": "Force the spa to start heating immediately for the configured duration."
+    },
+    "skip_next": {
+      "name": "Skip Next Heating",
+      "description": "Skip the next scheduled heating session."
+    },
+    "recalculate": {
+      "name": "Recalculate Schedule",
+      "description": "Force recalculation of the heating schedule."
+    }
+  }
+}

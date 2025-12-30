@@ -1,0 +1,12 @@
+{
+  "domain": "smart_spa_heating",
+  "name": "Smart Spa Heating",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/your-repo/smart-spa-heating",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/your-repo/smart-spa-heating/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
