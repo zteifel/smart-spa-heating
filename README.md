@@ -1,6 +1,7 @@
 # Smart Spa Heating
 
 A Home Assistant custom integration that intelligently schedules spa/hot tub heating based on electricity prices. It optimizes heating times to avoid expensive peak hours while ensuring your spa is always ready when you need it.
+
 <a href="https://www.buymeacoffee.com/zteifel" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 ## Features
 
