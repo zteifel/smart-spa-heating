@@ -1,4 +1,5 @@
-<p align="center"><img src="https://github.com/zteifel/smart-spa-heating/blob/main/smart_spa_logo.png" alt="Smart Spa Heating" width="200"></p>
+<p align="center"><img src="https://github.com/zteifel/smart-spa-heating/blob/main/logo_small.png" alt="Smart Spa Heating" width="400"><img src="https://github.com/zteifel/esphome-gecko/blob/master/logo_small.png" alt="Smart Spa Heating" width="400">
+</p>
 
 A Home Assistant custom integration that intelligently schedules spa/hot tub heating based on electricity prices. It optimizes heating times to avoid expensive peak hours while ensuring your spa is always ready when you need it.
 
