@@ -1,4 +1,4 @@
-# Smart Spa Heating
+<p align="center"><img src="https://github.com/zteifel/smart-spa-heating/blob/main/smart_spa_logo.png" alt="Smart Spa Heating" width="200"></p>
 
 A Home Assistant custom integration that intelligently schedules spa/hot tub heating based on electricity prices. It optimizes heating times to avoid expensive peak hours while ensuring your spa is always ready when you need it.
 
