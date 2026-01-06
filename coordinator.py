@@ -71,6 +71,7 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
 
         # Listeners
         self._unsub_nordpool_listener: callable | None = None
+        self._unsub_manual_override_end: callable | None = None
         self._unsub_climate_listener: callable | None = None
         self._unsub_hourly_update: callable | None = None
         self._unsub_heating_start: callable | None = None
@@ -295,14 +296,38 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
 
     def _activate_manual_override(self) -> None:
         """Activate manual override mode."""
+        # Cancel any existing override end callback
+        if self._unsub_manual_override_end:
+            self._unsub_manual_override_end()
+            self._unsub_manual_override_end = None
+
         self._manual_override_end = dt_util.now() + timedelta(
             hours=self.manual_override_duration
         )
         self._cancel_scheduled_heating()
+
+        # Schedule callback for when override ends
+        self._unsub_manual_override_end = async_track_point_in_time(
+            self.hass, self._manual_override_end_callback, self._manual_override_end
+        )
+        _LOGGER.debug("Scheduled manual override end callback for %s", self._manual_override_end)
+
         self.async_set_updated_data(self.data)
+
+    def _manual_override_end_callback(self, now: datetime) -> None:
+        """Handle manual override end."""
+        _LOGGER.info("Manual override ended, applying current schedule state")
+        self._manual_override_end = None
+        self._unsub_manual_override_end = None
+        self.hass.async_create_task(self._apply_current_schedule_state())
 
     def clear_manual_override(self) -> None:
         """Clear manual override mode and apply current schedule state."""
+        # Cancel the scheduled override end callback
+        if self._unsub_manual_override_end:
+            self._unsub_manual_override_end()
+            self._unsub_manual_override_end = None
+
         self._manual_override_end = None
         self.hass.async_create_task(self._apply_current_schedule_state())
         self.async_set_updated_data(self.data)
