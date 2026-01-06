@@ -66,6 +66,7 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         self._current_price: float | None = None
         self._skip_next = False
         self._expected_temperature: float | None = None  # Track what temp we set
+        self._expected_temperature_until: datetime | None = None  # Valid until this time
         self._ignore_next_temp_change = False  # Flag to ignore our own changes
 
         # Listeners
@@ -262,15 +263,20 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
             return
 
         # Check if this is a temperature we set ourselves
-        if self._expected_temperature is not None:
-            # Allow small tolerance for float comparison
-            if abs(new_temp - self._expected_temperature) < 0.1:
-                _LOGGER.debug(
-                    "Ignoring our own temperature change to %.1f°C",
-                    new_temp
-                )
-                self._expected_temperature = None  # Clear after matching
-                return
+        if self._expected_temperature is not None and self._expected_temperature_until is not None:
+            now = dt_util.now()
+            if now <= self._expected_temperature_until:
+                # Allow small tolerance for float comparison
+                if abs(new_temp - self._expected_temperature) < 0.1:
+                    _LOGGER.debug(
+                        "Ignoring our own temperature change to %.1f°C",
+                        new_temp
+                    )
+                    return
+            else:
+                # Expected temperature window expired, clear it
+                self._expected_temperature = None
+                self._expected_temperature_until = None
 
         # Check if we should ignore this change
         if self._ignore_next_temp_change:
@@ -426,7 +432,9 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Starting spa heating, setting temperature to %.1f°C", self.heating_temperature)
 
         # Set expected temperature so we don't trigger manual override
+        # Keep it valid for 30 seconds to handle any delayed state updates
         self._expected_temperature = self.heating_temperature
+        self._expected_temperature_until = dt_util.now() + timedelta(seconds=30)
 
         await self.hass.services.async_call(
             "climate",
@@ -451,7 +459,9 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         _LOGGER.info("Ending spa heating, setting temperature to %.1f°C", self.idle_temperature)
 
         # Set expected temperature so we don't trigger manual override
+        # Keep it valid for 30 seconds to handle any delayed state updates
         self._expected_temperature = self.idle_temperature
+        self._expected_temperature_until = dt_util.now() + timedelta(seconds=30)
 
         await self.hass.services.async_call(
             "climate",
