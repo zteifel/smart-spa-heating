@@ -73,7 +73,7 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         self._unsub_nordpool_listener: callable | None = None
         self._unsub_manual_override_end: callable | None = None
         self._unsub_climate_listener: callable | None = None
-        self._unsub_hourly_update: callable | None = None
+        self._unsub_periodic_check: callable | None = None
         self._unsub_heating_start: callable | None = None
         self._unsub_heating_end: callable | None = None
 
@@ -233,8 +233,8 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         )
 
         # Set up hourly recalculation
-        self._unsub_hourly_update = async_track_time_interval(
-            self.hass, self._hourly_update, timedelta(hours=1)
+        self._unsub_periodic_check = async_track_time_interval(
+            self.hass, self._periodic_check, timedelta(minutes=15)
         )
 
         # Initial schedule calculation
@@ -351,10 +351,19 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Manual override cleared - not in heating slot, setting idle temperature")
             await self._end_heating()
 
-    async def _hourly_update(self, now: datetime) -> None:
-        """Perform hourly schedule update."""
-        _LOGGER.debug("Hourly update triggered")
-        await self.async_recalculate_schedule()
+    async def _periodic_check(self, now: datetime) -> None:
+        """Perform periodic schedule check every 15 minutes."""
+        _LOGGER.debug("Periodic check triggered")
+
+        if self.manual_override_active:
+            _LOGGER.debug("Manual override active, skipping periodic check")
+            return
+
+        if not self._enabled:
+            _LOGGER.debug("Integration disabled, skipping periodic check")
+            return
+
+        await self._apply_current_schedule_state()
 
     async def async_recalculate_schedule(self) -> None:
         """Recalculate the heating schedule."""
@@ -554,5 +563,5 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
             self._unsub_nordpool_listener()
         if self._unsub_climate_listener:
             self._unsub_climate_listener()
-        if self._unsub_hourly_update:
-            self._unsub_hourly_update()
+        if self._unsub_periodic_check:
+            self._unsub_periodic_check()
