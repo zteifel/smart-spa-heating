@@ -463,6 +463,19 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         if not self._enabled:
             return
 
+        # Check current temperature to avoid unnecessary updates
+        climate_state = self.hass.states.get(self._climate_entity)
+        if climate_state:
+            current_temp = climate_state.attributes.get("temperature")
+            if current_temp is not None and abs(current_temp - self.heating_temperature) < 0.1:
+                _LOGGER.debug(
+                    "Climate already at heating temperature %.1f°C, skipping update",
+                    self.heating_temperature
+                )
+                self._heating_active = True
+                self.async_set_updated_data(self.data)
+                return
+
         _LOGGER.info("Starting spa heating, setting temperature to %.1f°C", self.heating_temperature)
 
         # Set expected temperature so we don't trigger manual override
@@ -489,6 +502,19 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         if self.manual_override_active:
             _LOGGER.debug("Manual override active, not ending heating")
             return
+
+        # Check current temperature to avoid unnecessary updates
+        climate_state = self.hass.states.get(self._climate_entity)
+        if climate_state:
+            current_temp = climate_state.attributes.get("temperature")
+            if current_temp is not None and abs(current_temp - self.idle_temperature) < 0.1:
+                _LOGGER.debug(
+                    "Climate already at idle temperature %.1f°C, skipping update",
+                    self.idle_temperature
+                )
+                self._heating_active = False
+                self.async_set_updated_data(self.data)
+                return
 
         _LOGGER.info("Ending spa heating, setting temperature to %.1f°C", self.idle_temperature)
 
