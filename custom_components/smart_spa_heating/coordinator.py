@@ -256,6 +256,14 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         if new_state is None or old_state is None:
             return
 
+        # Ignore state changes from unavailable/unknown states
+        if old_state.state in ("unavailable", "unknown"):
+            _LOGGER.debug(
+                "Ignoring climate state change from %s state",
+                old_state.state
+            )
+            return
+
         # Check if temperature changed
         new_temp = new_state.attributes.get("temperature")
         old_temp = old_state.attributes.get("temperature")
