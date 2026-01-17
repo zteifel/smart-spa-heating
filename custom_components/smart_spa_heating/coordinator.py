@@ -68,6 +68,7 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         self._expected_temperature: float | None = None  # Track what temp we set
         self._expected_temperature_until: datetime | None = None  # Valid until this time
         self._ignore_next_temp_change = False  # Flag to ignore our own changes
+        self._opportunistic_heating = False  # Track if we're in opportunistic heating mode
 
         # Listeners
         self._unsub_nordpool_listener: callable | None = None
@@ -139,6 +140,11 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         if self._manual_override_end is None:
             return False
         return dt_util.now() < self._manual_override_end
+
+    @property
+    def opportunistic_heating_active(self) -> bool:
+        """Return whether opportunistic heating is active."""
+        return self._opportunistic_heating
 
     @property
     def last_heating_time(self) -> datetime | None:
@@ -353,11 +359,85 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
                 break
 
         if in_heating_slot:
-            _LOGGER.info("Manual override cleared - currently in heating slot, starting heating")
+            _LOGGER.debug("Currently in heating slot, starting heating")
+            self._opportunistic_heating = False
             await self._start_heating()
         else:
-            _LOGGER.info("Manual override cleared - not in heating slot, setting idle temperature")
-            await self._end_heating()
+            # Check for opportunistic heating
+            should_heat_opportunistically = await self._should_opportunistic_heat()
+
+            if should_heat_opportunistically:
+                _LOGGER.info("Opportunistic heating: current price is cheaper than next scheduled heating")
+                self._opportunistic_heating = True
+                await self._start_heating()
+            else:
+                if self._opportunistic_heating:
+                    _LOGGER.info("Ending opportunistic heating: current price no longer cheaper")
+                self._opportunistic_heating = False
+                await self._end_heating()
+
+    async def _should_opportunistic_heat(self) -> bool:
+        """Check if we should heat opportunistically based on price comparison."""
+        if self._current_price is None:
+            _LOGGER.debug("No current price available, skipping opportunistic heating check")
+            return False
+
+        # Find the next scheduled heating slot
+        now = dt_util.now()
+        next_slot = None
+        for slot in self._schedule:
+            if slot.start > now:
+                next_slot = slot
+                break
+
+        if next_slot is None:
+            _LOGGER.debug("No future heating slot found, skipping opportunistic heating")
+            return False
+
+        # Get the price at the start of the next heating slot
+        next_slot_price = self._get_price_at_time(next_slot.start)
+
+        if next_slot_price is None:
+            _LOGGER.debug("No price data for next heating slot, skipping opportunistic heating")
+            return False
+
+        _LOGGER.debug(
+            "Opportunistic heating check: current price=%.3f, next slot price=%.3f at %s",
+            self._current_price,
+            next_slot_price,
+            next_slot.start.strftime("%H:%M")
+        )
+
+        # Heat opportunistically if current price is cheaper than next slot
+        return self._current_price < next_slot_price
+
+    def _get_price_at_time(self, target_time: datetime) -> float | None:
+        """Get the electricity price at a specific time."""
+        data = self.data or {}
+        today_prices = data.get("today", [])
+        tomorrow_prices = data.get("tomorrow", [])
+
+        if not today_prices:
+            return None
+
+        # Determine slots per hour from data
+        slots_per_hour = 4 if len(today_prices) >= 96 else 1
+        slot_minutes = 60 // slots_per_hour
+
+        today_start = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = today_start + timedelta(days=1)
+
+        # Calculate which slot the target time falls into
+        if target_time.date() == today_start.date():
+            slot_index = (target_time.hour * slots_per_hour) + (target_time.minute // slot_minutes)
+            if 0 <= slot_index < len(today_prices):
+                return today_prices[slot_index]
+        elif target_time.date() == tomorrow_start.date() and tomorrow_prices:
+            slot_index = (target_time.hour * slots_per_hour) + (target_time.minute // slot_minutes)
+            if 0 <= slot_index < len(tomorrow_prices):
+                return tomorrow_prices[slot_index]
+
+        return None
 
     async def _periodic_check(self, now: datetime) -> None:
         """Perform periodic schedule check every 15 minutes."""

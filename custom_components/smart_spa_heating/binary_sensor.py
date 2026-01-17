@@ -29,6 +29,7 @@ async def async_setup_entry(
     async_add_entities([
         HeatingActiveBinarySensor(coordinator, entry),
         ManualOverrideActiveBinarySensor(coordinator, entry),
+        OpportunisticHeatingActiveBinarySensor(coordinator, entry),
     ])
 
 
@@ -108,3 +109,25 @@ class ManualOverrideActiveBinarySensor(SmartSpaBinarySensorBase):
     def is_on(self) -> bool:
         """Return true if manual override is active."""
         return self.coordinator.manual_override_active
+
+
+class OpportunisticHeatingActiveBinarySensor(SmartSpaBinarySensorBase):
+    """Binary sensor showing whether opportunistic heating is active."""
+
+    _attr_name = "Opportunistic Heating Active"
+    _attr_icon = "mdi:cash-clock"
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_opportunistic_heating_active"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if opportunistic heating is active."""
+        return self.coordinator.opportunistic_heating_active
