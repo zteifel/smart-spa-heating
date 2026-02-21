@@ -19,6 +19,7 @@ from .const import (
     CONF_HEATING_TEMPERATURE,
     CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
+    CONF_NUM_PEAKS,
     MIN_HEATING_FREQUENCY,
     MAX_HEATING_FREQUENCY,
     MIN_HEATING_DURATION,
@@ -33,6 +34,8 @@ from .const import (
     MAX_IDLE_TEMPERATURE,
     MIN_MANUAL_OVERRIDE_DURATION,
     MAX_MANUAL_OVERRIDE_DURATION,
+    MIN_NUM_PEAKS,
+    MAX_NUM_PEAKS,
 )
 from .coordinator import SmartSpaHeatingCoordinator
 
@@ -55,6 +58,7 @@ async def async_setup_entry(
         HeatingTemperatureNumber(coordinator, entry),
         IdleTemperatureNumber(coordinator, entry),
         ManualOverrideDurationNumber(coordinator, entry),
+        NumPeaksNumber(coordinator, entry),
     ])
 
 
@@ -264,3 +268,27 @@ class ManualOverrideDurationNumber(SmartSpaNumberBase):
     def native_value(self) -> float:
         """Return the current value."""
         return self.coordinator.manual_override_duration
+
+
+class NumPeaksNumber(SmartSpaNumberBase):
+    """Number entity for number of peaks to avoid."""
+
+    _attr_name = "Number of Peaks"
+    _attr_icon = "mdi:chart-bell-curve"
+    _attr_native_min_value = MIN_NUM_PEAKS
+    _attr_native_max_value = MAX_NUM_PEAKS
+    _attr_native_step = 1
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, entry, CONF_NUM_PEAKS)
+        self._attr_unique_id = f"{entry.entry_id}_num_peaks"
+
+    @property
+    def native_value(self) -> float:
+        """Return the current value."""
+        return self.coordinator.num_peaks

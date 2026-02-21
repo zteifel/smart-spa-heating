@@ -243,6 +243,93 @@ class SpaHeatingScheduler:
 
         return slots
 
+    def calculate_schedule_peak_avoidance(
+        self,
+        today_prices: list[float],
+        tomorrow_prices: list[float] | None,
+        num_peaks: int,
+        heating_duration_minutes: float,
+        price_threshold: float,
+        high_price_threshold: float,
+    ) -> list[HeatingSlot]:
+        """
+        Calculate heating schedule using peak avoidance algorithm.
+
+        Algorithm:
+        1. Build price slots from price data
+        2. Find the N highest-priced slots
+        3. Center a cooling zone of heating_duration_minutes around each peak
+        4. Apply threshold rules: always heat below price_threshold,
+           never heat above high_price_threshold
+        5. Mark all remaining slots as HEATING
+        """
+        now = dt_util.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        slots_per_hour = self._detect_slots_per_hour(today_prices, tomorrow_prices)
+        slot_duration = timedelta(minutes=60 // slots_per_hour)
+
+        _LOGGER.debug(
+            "Peak avoidance: %d slots/hour (%d min intervals), %d peaks to avoid",
+            slots_per_hour, 60 // slots_per_hour, num_peaks
+        )
+
+        price_slots = self._build_price_slots(
+            today_prices, tomorrow_prices, today_start, now, slot_duration, slots_per_hour
+        )
+
+        if not price_slots:
+            _LOGGER.warning("No price data available for scheduling")
+            return []
+
+        # Step 1: Find the N highest-priced slots
+        sorted_by_price = sorted(price_slots, key=lambda x: x.price, reverse=True)
+        peak_slots = sorted_by_price[:num_peaks]
+
+        _LOGGER.debug(
+            "Top %d peaks: %s",
+            num_peaks,
+            [(ps.start.strftime("%d %H:%M"), ps.price) for ps in peak_slots],
+        )
+
+        # Step 2: Center a cooling zone of heating_duration_minutes around each peak
+        half_duration = timedelta(minutes=heating_duration_minutes / 2)
+
+        for peak in peak_slots:
+            cooling_start = peak.start - half_duration
+            cooling_end = peak.start + peak.duration + half_duration
+
+            for ps in price_slots:
+                if ps.start < cooling_end and ps.end > cooling_start:
+                    if ps.status == SlotStatus.UNMARKED:
+                        ps.status = SlotStatus.COOLING
+
+        # Step 3: Apply threshold rules
+        for ps in price_slots:
+            if ps.price < price_threshold:
+                ps.status = SlotStatus.HEATING
+            elif ps.status == SlotStatus.UNMARKED and ps.price > high_price_threshold:
+                ps.status = SlotStatus.COOLING
+
+        # Step 4: Mark all remaining unmarked slots as HEATING
+        for ps in price_slots:
+            if ps.status == SlotStatus.UNMARKED:
+                ps.status = SlotStatus.HEATING
+
+        # Convert to HeatingSlot objects
+        slots = self._create_heating_slots(price_slots)
+
+        _LOGGER.debug("Peak avoidance schedule: %d heating slots", len(slots))
+        for slot in slots:
+            _LOGGER.debug(
+                "  %s to %s (%s)",
+                slot.start.strftime("%Y-%m-%d %H:%M"),
+                slot.end.strftime("%Y-%m-%d %H:%M"),
+                slot.reason,
+            )
+
+        return slots
+
     def _detect_slots_per_hour(
         self,
         today_prices: list[float],

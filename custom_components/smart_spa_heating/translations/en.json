@@ -19,7 +19,9 @@
           "high_price_threshold": "High Price Threshold (never heat above)",
           "heating_temperature": "Heating Temperature (°C)",
           "idle_temperature": "Idle Temperature (°C)",
-          "manual_override_duration": "Manual Override Duration (hours)"
+          "manual_override_duration": "Manual Override Duration (hours)",
+          "scheduling_algorithm": "Scheduling Algorithm",
+          "num_peaks": "Number of Peaks"
         }
       }
     },
@@ -44,7 +46,9 @@
           "high_price_threshold": "High Price Threshold (never heat above)",
           "heating_temperature": "Heating Temperature (°C)",
           "idle_temperature": "Idle Temperature (°C)",
-          "manual_override_duration": "Manual Override Duration (hours)"
+          "manual_override_duration": "Manual Override Duration (hours)",
+          "scheduling_algorithm": "Scheduling Algorithm",
+          "num_peaks": "Number of Peaks"
         }
       }
     },
@@ -104,6 +108,18 @@
       },
       "manual_override_duration": {
         "name": "Manual Override Duration"
+      },
+      "num_peaks": {
+        "name": "Number of Peaks"
+      }
+    },
+    "select": {
+      "scheduling_algorithm": {
+        "name": "Scheduling Algorithm",
+        "state": {
+          "interval": "Interval",
+          "peak_avoidance": "Peak Avoidance"
+        }
       }
     },
     "button": {

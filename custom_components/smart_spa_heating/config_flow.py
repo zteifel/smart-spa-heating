@@ -16,6 +16,9 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
@@ -29,6 +32,8 @@ from .const import (
     CONF_HEATING_TEMPERATURE,
     CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
+    CONF_NUM_PEAKS,
+    CONF_SCHEDULING_ALGORITHM,
     DEFAULT_HEATING_FREQUENCY,
     DEFAULT_HEATING_DURATION,
     DEFAULT_PRICE_THRESHOLD,
@@ -36,6 +41,10 @@ from .const import (
     DEFAULT_HEATING_TEMPERATURE,
     DEFAULT_IDLE_TEMPERATURE,
     DEFAULT_MANUAL_OVERRIDE_DURATION,
+    DEFAULT_NUM_PEAKS,
+    DEFAULT_SCHEDULING_ALGORITHM,
+    ALGORITHM_INTERVAL,
+    ALGORITHM_PEAK_AVOIDANCE,
     MIN_HEATING_FREQUENCY,
     MAX_HEATING_FREQUENCY,
     MIN_HEATING_DURATION,
@@ -50,6 +59,8 @@ from .const import (
     MAX_IDLE_TEMPERATURE,
     MIN_MANUAL_OVERRIDE_DURATION,
     MAX_MANUAL_OVERRIDE_DURATION,
+    MIN_NUM_PEAKS,
+    MAX_NUM_PEAKS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +88,8 @@ def get_settings_schema(
     heating_temperature: float = DEFAULT_HEATING_TEMPERATURE,
     idle_temperature: float = DEFAULT_IDLE_TEMPERATURE,
     manual_override_duration: float = DEFAULT_MANUAL_OVERRIDE_DURATION,
+    scheduling_algorithm: str = DEFAULT_SCHEDULING_ALGORITHM,
+    num_peaks: int = DEFAULT_NUM_PEAKS,
 ) -> vol.Schema:
     """Return schema for settings step."""
     return vol.Schema(
@@ -154,6 +167,24 @@ def get_settings_schema(
                     step=1,
                     mode=NumberSelectorMode.BOX,
                     unit_of_measurement="hours",
+                )
+            ),
+            vol.Required(
+                CONF_SCHEDULING_ALGORITHM, default=scheduling_algorithm
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE],
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Required(
+                CONF_NUM_PEAKS, default=num_peaks
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_NUM_PEAKS,
+                    max=MAX_NUM_PEAKS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
                 )
             ),
         }
@@ -273,6 +304,8 @@ class SmartSpaHeatingOptionsFlow(config_entries.OptionsFlow):
                 heating_temperature=current.get(CONF_HEATING_TEMPERATURE, DEFAULT_HEATING_TEMPERATURE),
                 idle_temperature=current.get(CONF_IDLE_TEMPERATURE, DEFAULT_IDLE_TEMPERATURE),
                 manual_override_duration=current.get(CONF_MANUAL_OVERRIDE_DURATION, DEFAULT_MANUAL_OVERRIDE_DURATION),
+                scheduling_algorithm=current.get(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM),
+                num_peaks=current.get(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS),
             ),
             errors=errors,
         )

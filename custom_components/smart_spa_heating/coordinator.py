@@ -26,6 +26,8 @@ from .const import (
     CONF_HEATING_TEMPERATURE,
     CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
+    CONF_NUM_PEAKS,
+    CONF_SCHEDULING_ALGORITHM,
     DEFAULT_HEATING_FREQUENCY,
     DEFAULT_HEATING_DURATION,
     DEFAULT_PRICE_THRESHOLD,
@@ -33,6 +35,9 @@ from .const import (
     DEFAULT_HEATING_TEMPERATURE,
     DEFAULT_IDLE_TEMPERATURE,
     DEFAULT_MANUAL_OVERRIDE_DURATION,
+    DEFAULT_NUM_PEAKS,
+    DEFAULT_SCHEDULING_ALGORITHM,
+    ALGORITHM_PEAK_AVOIDANCE,
 )
 from .scheduler import SpaHeatingScheduler, HeatingSlot
 
@@ -191,6 +196,16 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
     def manual_override_duration(self) -> float:
         """Return manual override duration in hours."""
         return self._get_config_value(CONF_MANUAL_OVERRIDE_DURATION, DEFAULT_MANUAL_OVERRIDE_DURATION)
+
+    @property
+    def num_peaks(self) -> int:
+        """Return number of peaks to avoid."""
+        return int(self._get_config_value(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS))
+
+    @property
+    def scheduling_algorithm(self) -> str:
+        """Return the selected scheduling algorithm."""
+        return self._get_config_value(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM)
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Nordpool sensor."""
@@ -469,15 +484,25 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("No price data available, cannot calculate schedule")
             return
 
-        # Calculate schedule
-        self._schedule = self._scheduler.calculate_schedule(
-            today_prices=today_prices,
-            tomorrow_prices=tomorrow_prices,
-            heating_frequency_hours=self.heating_frequency,
-            heating_duration_minutes=self.heating_duration,
-            price_threshold=self.price_threshold,
-            high_price_threshold=self.high_price_threshold,
-        )
+        # Calculate schedule based on selected algorithm
+        if self.scheduling_algorithm == ALGORITHM_PEAK_AVOIDANCE:
+            self._schedule = self._scheduler.calculate_schedule_peak_avoidance(
+                today_prices=today_prices,
+                tomorrow_prices=tomorrow_prices,
+                num_peaks=self.num_peaks,
+                heating_duration_minutes=self.heating_duration,
+                price_threshold=self.price_threshold,
+                high_price_threshold=self.high_price_threshold,
+            )
+        else:
+            self._schedule = self._scheduler.calculate_schedule(
+                today_prices=today_prices,
+                tomorrow_prices=tomorrow_prices,
+                heating_frequency_hours=self.heating_frequency,
+                heating_duration_minutes=self.heating_duration,
+                price_threshold=self.price_threshold,
+                high_price_threshold=self.high_price_threshold,
+            )
 
         _LOGGER.debug("Calculated %d heating slots", len(self._schedule))
 

@@ -13,6 +13,8 @@ CONF_HIGH_PRICE_THRESHOLD: Final = "high_price_threshold"
 CONF_HEATING_TEMPERATURE: Final = "heating_temperature"
 CONF_IDLE_TEMPERATURE: Final = "idle_temperature"
 CONF_MANUAL_OVERRIDE_DURATION: Final = "manual_override_duration"
+CONF_NUM_PEAKS: Final = "num_peaks"
+CONF_SCHEDULING_ALGORITHM: Final = "scheduling_algorithm"
 
 # Default values
 DEFAULT_HEATING_FREQUENCY: Final = 3  # hours
@@ -22,6 +24,12 @@ DEFAULT_HIGH_PRICE_THRESHOLD: Final = 3.0  # currency agnostic - never heat abov
 DEFAULT_HEATING_TEMPERATURE: Final = 37.5  # °C
 DEFAULT_IDLE_TEMPERATURE: Final = 35.0  # °C
 DEFAULT_MANUAL_OVERRIDE_DURATION: Final = 3  # hours
+DEFAULT_NUM_PEAKS: Final = 3
+DEFAULT_SCHEDULING_ALGORITHM: Final = "interval"
+
+# Algorithm choices
+ALGORITHM_INTERVAL: Final = "interval"
+ALGORITHM_PEAK_AVOIDANCE: Final = "peak_avoidance"
 
 # Limits
 MIN_HEATING_FREQUENCY: Final = 1
@@ -38,9 +46,11 @@ MIN_IDLE_TEMPERATURE: Final = 5.0
 MAX_IDLE_TEMPERATURE: Final = 42.0  # No upper limit restriction
 MIN_MANUAL_OVERRIDE_DURATION: Final = 1
 MAX_MANUAL_OVERRIDE_DURATION: Final = 12
+MIN_NUM_PEAKS: Final = 1
+MAX_NUM_PEAKS: Final = 20
 
 # Platforms
-PLATFORMS: Final = ["switch", "sensor", "binary_sensor", "number", "button"]
+PLATFORMS: Final = ["switch", "sensor", "binary_sensor", "number", "button", "select"]
 
 # Attributes
 ATTR_SCHEDULE: Final = "schedule"
