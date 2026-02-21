@@ -27,6 +27,7 @@ from .const import (
     CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
     CONF_NUM_PEAKS,
+    CONF_PEAK_COOLING_TIME,
     CONF_SCHEDULING_ALGORITHM,
     DEFAULT_HEATING_FREQUENCY,
     DEFAULT_HEATING_DURATION,
@@ -36,6 +37,7 @@ from .const import (
     DEFAULT_IDLE_TEMPERATURE,
     DEFAULT_MANUAL_OVERRIDE_DURATION,
     DEFAULT_NUM_PEAKS,
+    DEFAULT_PEAK_COOLING_TIME,
     DEFAULT_SCHEDULING_ALGORITHM,
     ALGORITHM_PEAK_AVOIDANCE,
 )
@@ -201,6 +203,11 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
     def num_peaks(self) -> int:
         """Return number of peaks to avoid."""
         return int(self._get_config_value(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS))
+
+    @property
+    def peak_cooling_time(self) -> float:
+        """Return peak cooling time in minutes."""
+        return self._get_config_value(CONF_PEAK_COOLING_TIME, DEFAULT_PEAK_COOLING_TIME)
 
     @property
     def scheduling_algorithm(self) -> str:
@@ -490,7 +497,7 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
                 today_prices=today_prices,
                 tomorrow_prices=tomorrow_prices,
                 num_peaks=self.num_peaks,
-                heating_duration_minutes=self.heating_duration,
+                peak_cooling_time_minutes=self.peak_cooling_time,
                 price_threshold=self.price_threshold,
                 high_price_threshold=self.high_price_threshold,
             )

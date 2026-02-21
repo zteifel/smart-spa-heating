@@ -14,6 +14,7 @@ CONF_HEATING_TEMPERATURE: Final = "heating_temperature"
 CONF_IDLE_TEMPERATURE: Final = "idle_temperature"
 CONF_MANUAL_OVERRIDE_DURATION: Final = "manual_override_duration"
 CONF_NUM_PEAKS: Final = "num_peaks"
+CONF_PEAK_COOLING_TIME: Final = "peak_cooling_time"
 CONF_SCHEDULING_ALGORITHM: Final = "scheduling_algorithm"
 
 # Default values
@@ -25,6 +26,7 @@ DEFAULT_HEATING_TEMPERATURE: Final = 37.5  # °C
 DEFAULT_IDLE_TEMPERATURE: Final = 35.0  # °C
 DEFAULT_MANUAL_OVERRIDE_DURATION: Final = 3  # hours
 DEFAULT_NUM_PEAKS: Final = 3
+DEFAULT_PEAK_COOLING_TIME: Final = 60  # minutes
 DEFAULT_SCHEDULING_ALGORITHM: Final = "interval"
 
 # Algorithm choices
@@ -48,6 +50,8 @@ MIN_MANUAL_OVERRIDE_DURATION: Final = 1
 MAX_MANUAL_OVERRIDE_DURATION: Final = 12
 MIN_NUM_PEAKS: Final = 1
 MAX_NUM_PEAKS: Final = 20
+MIN_PEAK_COOLING_TIME: Final = 15
+MAX_PEAK_COOLING_TIME: Final = 480
 
 # Platforms
 PLATFORMS: Final = ["switch", "sensor", "binary_sensor", "number", "button", "select"]

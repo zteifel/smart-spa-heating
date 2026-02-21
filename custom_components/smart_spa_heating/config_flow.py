@@ -33,6 +33,7 @@ from .const import (
     CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
     CONF_NUM_PEAKS,
+    CONF_PEAK_COOLING_TIME,
     CONF_SCHEDULING_ALGORITHM,
     DEFAULT_HEATING_FREQUENCY,
     DEFAULT_HEATING_DURATION,
@@ -42,6 +43,7 @@ from .const import (
     DEFAULT_IDLE_TEMPERATURE,
     DEFAULT_MANUAL_OVERRIDE_DURATION,
     DEFAULT_NUM_PEAKS,
+    DEFAULT_PEAK_COOLING_TIME,
     DEFAULT_SCHEDULING_ALGORITHM,
     ALGORITHM_INTERVAL,
     ALGORITHM_PEAK_AVOIDANCE,
@@ -61,6 +63,8 @@ from .const import (
     MAX_MANUAL_OVERRIDE_DURATION,
     MIN_NUM_PEAKS,
     MAX_NUM_PEAKS,
+    MIN_PEAK_COOLING_TIME,
+    MAX_PEAK_COOLING_TIME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,6 +94,7 @@ def get_settings_schema(
     manual_override_duration: float = DEFAULT_MANUAL_OVERRIDE_DURATION,
     scheduling_algorithm: str = DEFAULT_SCHEDULING_ALGORITHM,
     num_peaks: int = DEFAULT_NUM_PEAKS,
+    peak_cooling_time: float = DEFAULT_PEAK_COOLING_TIME,
 ) -> vol.Schema:
     """Return schema for settings step."""
     return vol.Schema(
@@ -185,6 +190,17 @@ def get_settings_schema(
                     max=MAX_NUM_PEAKS,
                     step=1,
                     mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_PEAK_COOLING_TIME, default=peak_cooling_time
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_PEAK_COOLING_TIME,
+                    max=MAX_PEAK_COOLING_TIME,
+                    step=15,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="minutes",
                 )
             ),
         }
@@ -306,6 +322,7 @@ class SmartSpaHeatingOptionsFlow(config_entries.OptionsFlow):
                 manual_override_duration=current.get(CONF_MANUAL_OVERRIDE_DURATION, DEFAULT_MANUAL_OVERRIDE_DURATION),
                 scheduling_algorithm=current.get(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM),
                 num_peaks=current.get(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS),
+                peak_cooling_time=current.get(CONF_PEAK_COOLING_TIME, DEFAULT_PEAK_COOLING_TIME),
             ),
             errors=errors,
         )

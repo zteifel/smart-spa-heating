@@ -248,7 +248,7 @@ class SpaHeatingScheduler:
         today_prices: list[float],
         tomorrow_prices: list[float] | None,
         num_peaks: int,
-        heating_duration_minutes: float,
+        peak_cooling_time_minutes: float,
         price_threshold: float,
         high_price_threshold: float,
     ) -> list[HeatingSlot]:
@@ -258,7 +258,7 @@ class SpaHeatingScheduler:
         Algorithm:
         1. Build price slots from price data
         2. Find the N highest-priced slots
-        3. Center a cooling zone of heating_duration_minutes around each peak
+        3. Center a cooling zone of peak_cooling_time_minutes around each peak
         4. Apply threshold rules: always heat below price_threshold,
            never heat above high_price_threshold
         5. Mark all remaining slots as HEATING
@@ -292,8 +292,8 @@ class SpaHeatingScheduler:
             [(ps.start.strftime("%d %H:%M"), ps.price) for ps in peak_slots],
         )
 
-        # Step 2: Center a cooling zone of heating_duration_minutes around each peak
-        half_duration = timedelta(minutes=heating_duration_minutes / 2)
+        # Step 2: Center a cooling zone of peak_cooling_time_minutes around each peak
+        half_duration = timedelta(minutes=peak_cooling_time_minutes / 2)
 
         for peak in peak_slots:
             cooling_start = peak.start - half_duration

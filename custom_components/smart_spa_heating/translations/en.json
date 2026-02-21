@@ -21,7 +21,8 @@
           "idle_temperature": "Idle Temperature (°C)",
           "manual_override_duration": "Manual Override Duration (hours)",
           "scheduling_algorithm": "Scheduling Algorithm",
-          "num_peaks": "Number of Peaks"
+          "num_peaks": "Number of Peaks",
+          "peak_cooling_time": "Peak Cooling Time (minutes)"
         }
       }
     },
@@ -111,6 +112,9 @@
       },
       "num_peaks": {
         "name": "Number of Peaks"
+      },
+      "peak_cooling_time": {
+        "name": "Peak Cooling Time"
       }
     },
     "select": {
