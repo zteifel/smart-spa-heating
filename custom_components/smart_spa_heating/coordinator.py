@@ -40,6 +40,13 @@ from .const import (
     DEFAULT_PEAK_COOLING_TIME,
     DEFAULT_SCHEDULING_ALGORITHM,
     ALGORITHM_PEAK_AVOIDANCE,
+    ALGORITHM_PRICE_PROPORTIONAL,
+    CONF_PP_MAX_TEMPERATURE,
+    CONF_PP_MIN_TEMPERATURE,
+    CONF_LOOKAHEAD_HOURS,
+    DEFAULT_PP_MAX_TEMPERATURE,
+    DEFAULT_PP_MIN_TEMPERATURE,
+    DEFAULT_LOOKAHEAD_HOURS,
 )
 from .scheduler import SpaHeatingScheduler, HeatingSlot
 
@@ -214,6 +221,21 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         """Return the selected scheduling algorithm."""
         return self._get_config_value(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM)
 
+    @property
+    def pp_max_temperature(self) -> float:
+        """Return price proportional max temperature."""
+        return self._get_config_value(CONF_PP_MAX_TEMPERATURE, DEFAULT_PP_MAX_TEMPERATURE)
+
+    @property
+    def pp_min_temperature(self) -> float:
+        """Return price proportional min temperature."""
+        return self._get_config_value(CONF_PP_MIN_TEMPERATURE, DEFAULT_PP_MIN_TEMPERATURE)
+
+    @property
+    def lookahead_hours(self) -> int:
+        """Return lookahead hours for price proportional algorithm."""
+        return int(self._get_config_value(CONF_LOOKAHEAD_HOURS, DEFAULT_LOOKAHEAD_HOURS))
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Nordpool sensor."""
         nordpool_state = self.hass.states.get(self._nordpool_entity)
@@ -372,6 +394,29 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         """Recalculate schedule and immediately apply the correct temperature."""
         await self.async_recalculate_schedule()
 
+        # Price proportional algorithm: find current slot and apply its temperature
+        if self.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
+            now = dt_util.now()
+            current_slot = None
+            for slot in self._schedule:
+                if slot.start <= now < slot.end:
+                    current_slot = slot
+                    break
+
+            if current_slot is not None:
+                _LOGGER.debug(
+                    "Price proportional periodic check: applying %.1f°C",
+                    current_slot.target_temperature,
+                )
+                await self._set_target_temperature(current_slot.target_temperature)
+            else:
+                _LOGGER.debug(
+                    "Price proportional: no current slot, setting min temperature %.1f°C",
+                    self.pp_min_temperature,
+                )
+                await self._set_target_temperature(self.pp_min_temperature)
+            return
+
         # Check if we're currently in a heating slot
         now = dt_util.now()
         in_heating_slot = False
@@ -492,7 +537,15 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
             return
 
         # Calculate schedule based on selected algorithm
-        if self.scheduling_algorithm == ALGORITHM_PEAK_AVOIDANCE:
+        if self.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
+            self._schedule = self._scheduler.calculate_schedule_price_proportional(
+                today_prices=today_prices,
+                tomorrow_prices=tomorrow_prices,
+                max_temperature=self.pp_max_temperature,
+                min_temperature=self.pp_min_temperature,
+                lookahead_hours=self.lookahead_hours,
+            )
+        elif self.scheduling_algorithm == ALGORITHM_PEAK_AVOIDANCE:
             self._schedule = self._scheduler.calculate_schedule_peak_avoidance(
                 today_prices=today_prices,
                 tomorrow_prices=tomorrow_prices,
@@ -514,7 +567,10 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Calculated %d heating slots", len(self._schedule))
 
         # Schedule the heating events
-        self._schedule_heating_events()
+        if self.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
+            self._schedule_temperature_slots()
+        else:
+            self._schedule_heating_events()
 
         self.async_set_updated_data(self.data)
 
@@ -561,6 +617,81 @@ class SmartSpaHeatingCoordinator(DataUpdateCoordinator):
                         self.hass, self._end_heating_callback, slot.end
                     )
                 break
+
+    def _schedule_temperature_slots(self) -> None:
+        """Schedule temperature slot transitions for price proportional algorithm."""
+        self._cancel_scheduled_heating()
+
+        if not self._schedule or not self._enabled:
+            return
+
+        now = dt_util.now()
+
+        for slot in self._schedule:
+            if slot.end > now:
+                if slot.start <= now:
+                    # We're in this slot - apply its temperature now
+                    self.hass.async_create_task(
+                        self._set_target_temperature(slot.target_temperature)
+                    )
+                    # Schedule callback at slot end to chain to next
+                    self._unsub_heating_end = async_track_point_in_time(
+                        self.hass, self._temperature_slot_callback, slot.end
+                    )
+                else:
+                    # Future slot - schedule callback at its start
+                    self._unsub_heating_start = async_track_point_in_time(
+                        self.hass, self._temperature_slot_callback, slot.start
+                    )
+                break
+
+    @callback
+    def _temperature_slot_callback(self, now: datetime) -> None:
+        """Callback for temperature slot transition."""
+        self._schedule_temperature_slots()
+
+    async def _set_target_temperature(self, temperature: float) -> None:
+        """Set the spa target temperature for price proportional algorithm."""
+        if self.manual_override_active:
+            _LOGGER.debug("Manual override active, not setting temperature")
+            return
+
+        if not self._enabled:
+            return
+
+        # Check current temperature to avoid unnecessary updates
+        climate_state = self.hass.states.get(self._climate_entity)
+        if climate_state:
+            current_temp = climate_state.attributes.get("temperature")
+            if current_temp is not None and abs(current_temp - temperature) < 0.1:
+                _LOGGER.debug(
+                    "Climate already at target temperature %.1f°C, skipping update",
+                    temperature
+                )
+                self._heating_active = temperature > self.pp_min_temperature
+                self.async_set_updated_data(self.data)
+                return
+
+        _LOGGER.info(
+            "Price proportional: setting temperature to %.1f°C", temperature
+        )
+
+        # Set expected temperature so we don't trigger manual override
+        self._expected_temperature = temperature
+        self._expected_temperature_until = dt_util.now() + timedelta(seconds=30)
+
+        await self.hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {
+                "entity_id": self._climate_entity,
+                "temperature": temperature,
+            },
+            blocking=True,
+        )
+
+        self._heating_active = temperature > self.pp_min_temperature
+        self.async_set_updated_data(self.data)
 
     @callback
     def _start_heating_callback(self, now: datetime) -> None:

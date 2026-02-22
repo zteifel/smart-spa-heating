@@ -21,6 +21,9 @@ from .const import (
     CONF_MANUAL_OVERRIDE_DURATION,
     CONF_NUM_PEAKS,
     CONF_PEAK_COOLING_TIME,
+    CONF_PP_MAX_TEMPERATURE,
+    CONF_PP_MIN_TEMPERATURE,
+    CONF_LOOKAHEAD_HOURS,
     MIN_HEATING_FREQUENCY,
     MAX_HEATING_FREQUENCY,
     MIN_HEATING_DURATION,
@@ -39,6 +42,12 @@ from .const import (
     MAX_NUM_PEAKS,
     MIN_PEAK_COOLING_TIME,
     MAX_PEAK_COOLING_TIME,
+    MIN_PP_MAX_TEMPERATURE,
+    MAX_PP_MAX_TEMPERATURE,
+    MIN_PP_MIN_TEMPERATURE,
+    MAX_PP_MIN_TEMPERATURE,
+    MIN_LOOKAHEAD_HOURS,
+    MAX_LOOKAHEAD_HOURS,
 )
 from .coordinator import SmartSpaHeatingCoordinator
 
@@ -63,6 +72,9 @@ async def async_setup_entry(
         ManualOverrideDurationNumber(coordinator, entry),
         NumPeaksNumber(coordinator, entry),
         PeakCoolingTimeNumber(coordinator, entry),
+        PpMaxTemperatureNumber(coordinator, entry),
+        PpMinTemperatureNumber(coordinator, entry),
+        LookaheadHoursNumber(coordinator, entry),
     ])
 
 
@@ -321,3 +333,78 @@ class PeakCoolingTimeNumber(SmartSpaNumberBase):
     def native_value(self) -> float:
         """Return the current value."""
         return self.coordinator.peak_cooling_time
+
+
+class PpMaxTemperatureNumber(SmartSpaNumberBase):
+    """Number entity for price proportional max temperature."""
+
+    _attr_name = "Max Temperature (Price Proportional)"
+    _attr_icon = "mdi:thermometer-chevron-up"
+    _attr_native_min_value = MIN_PP_MAX_TEMPERATURE
+    _attr_native_max_value = MAX_PP_MAX_TEMPERATURE
+    _attr_native_step = 0.5
+    _attr_native_unit_of_measurement = "°C"
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, entry, CONF_PP_MAX_TEMPERATURE)
+        self._attr_unique_id = f"{entry.entry_id}_pp_max_temperature"
+
+    @property
+    def native_value(self) -> float:
+        """Return the current value."""
+        return self.coordinator.pp_max_temperature
+
+
+class PpMinTemperatureNumber(SmartSpaNumberBase):
+    """Number entity for price proportional min temperature."""
+
+    _attr_name = "Min Temperature (Price Proportional)"
+    _attr_icon = "mdi:thermometer-chevron-down"
+    _attr_native_min_value = MIN_PP_MIN_TEMPERATURE
+    _attr_native_max_value = MAX_PP_MIN_TEMPERATURE
+    _attr_native_step = 0.5
+    _attr_native_unit_of_measurement = "°C"
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, entry, CONF_PP_MIN_TEMPERATURE)
+        self._attr_unique_id = f"{entry.entry_id}_pp_min_temperature"
+
+    @property
+    def native_value(self) -> float:
+        """Return the current value."""
+        return self.coordinator.pp_min_temperature
+
+
+class LookaheadHoursNumber(SmartSpaNumberBase):
+    """Number entity for lookahead hours."""
+
+    _attr_name = "Lookahead Hours"
+    _attr_icon = "mdi:crystal-ball"
+    _attr_native_min_value = MIN_LOOKAHEAD_HOURS
+    _attr_native_max_value = MAX_LOOKAHEAD_HOURS
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "hours"
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, entry, CONF_LOOKAHEAD_HOURS)
+        self._attr_unique_id = f"{entry.entry_id}_lookahead_hours"
+
+    @property
+    def native_value(self) -> float:
+        """Return the current value."""
+        return self.coordinator.lookahead_hours

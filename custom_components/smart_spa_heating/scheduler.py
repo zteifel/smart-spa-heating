@@ -30,14 +30,18 @@ class HeatingSlot:
     start: datetime
     end: datetime
     reason: str  # "threshold", "scheduled"
+    target_temperature: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "start": self.start.isoformat(),
             "end": self.end.isoformat(),
             "reason": self.reason,
         }
+        if self.target_temperature is not None:
+            result["target_temperature"] = self.target_temperature
+        return result
 
 
 @dataclass
@@ -326,6 +330,133 @@ class SpaHeatingScheduler:
                 slot.start.strftime("%Y-%m-%d %H:%M"),
                 slot.end.strftime("%Y-%m-%d %H:%M"),
                 slot.reason,
+            )
+
+        return slots
+
+    def calculate_schedule_price_proportional(
+        self,
+        today_prices: list[float],
+        tomorrow_prices: list[float] | None,
+        max_temperature: float,
+        min_temperature: float,
+        lookahead_hours: int,
+    ) -> list[HeatingSlot]:
+        """
+        Calculate heating schedule using price proportional algorithm.
+
+        Maps electricity prices to target temperatures continuously:
+        cheapest price -> max_temperature, most expensive -> min_temperature.
+        Includes a lookahead boost to pre-heat before expensive periods.
+        """
+        now = dt_util.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        slots_per_hour = self._detect_slots_per_hour(today_prices, tomorrow_prices)
+        slot_duration = timedelta(minutes=60 // slots_per_hour)
+
+        _LOGGER.debug(
+            "Price proportional: %d slots/hour (%d min intervals), "
+            "temp range=%.1f-%.1f°C, lookahead=%dh",
+            slots_per_hour, 60 // slots_per_hour,
+            min_temperature, max_temperature, lookahead_hours,
+        )
+
+        price_slots = self._build_price_slots(
+            today_prices, tomorrow_prices, today_start, now, slot_duration, slots_per_hour
+        )
+
+        if not price_slots:
+            _LOGGER.warning("No price data available for scheduling")
+            return []
+
+        # Find global min/max price
+        all_prices = [ps.price for ps in price_slots]
+        min_price = min(all_prices)
+        max_price = max(all_prices)
+        price_range = max_price - min_price
+
+        _LOGGER.debug(
+            "Price range: %.3f to %.3f (range=%.3f)",
+            min_price, max_price, price_range,
+        )
+
+        if price_range < 0.001:
+            # All prices are the same - use midpoint temperature
+            mid_temp = round((max_temperature + min_temperature) / 2 * 2) / 2
+            _LOGGER.debug("Flat prices, using midpoint temperature %.1f°C", mid_temp)
+            return [HeatingSlot(
+                start=price_slots[0].start,
+                end=price_slots[-1].end,
+                reason="scheduled",
+                target_temperature=mid_temp,
+            )]
+
+        temp_range = max_temperature - min_temperature
+        lookahead_duration = timedelta(hours=lookahead_hours)
+
+        # Calculate target temperature for each slot
+        slot_temps: list[tuple[PriceSlot, float]] = []
+        for i, ps in enumerate(price_slots):
+            # Base temperature from price ratio
+            price_ratio = (ps.price - min_price) / price_range  # 0=cheapest, 1=most expensive
+            base_temp = max_temperature - price_ratio * temp_range
+
+            # Lookahead boost: compute avg price of next lookahead_hours
+            lookahead_end = ps.start + lookahead_duration
+            upcoming_slots = [
+                future_ps for future_ps in price_slots
+                if future_ps.start > ps.start and future_ps.start < lookahead_end
+            ]
+
+            if upcoming_slots:
+                upcoming_avg = sum(s.price for s in upcoming_slots) / len(upcoming_slots)
+                lookahead_factor = max(0.0, min(1.0, (upcoming_avg - ps.price) / price_range))
+                boost = lookahead_factor * (max_temperature - base_temp) * 0.5
+                target_temp = min(base_temp + boost, max_temperature)
+            else:
+                target_temp = base_temp
+
+            # Round to nearest 0.5°C
+            target_temp = round(target_temp * 2) / 2
+
+            slot_temps.append((ps, target_temp))
+
+        # Merge consecutive slots with the same target_temperature
+        slots: list[HeatingSlot] = []
+        current_start = slot_temps[0][0].start
+        current_end = slot_temps[0][0].end
+        current_temp = slot_temps[0][1]
+
+        for ps, temp in slot_temps[1:]:
+            if temp == current_temp:
+                current_end = ps.end
+            else:
+                slots.append(HeatingSlot(
+                    start=current_start,
+                    end=current_end,
+                    reason="scheduled",
+                    target_temperature=current_temp,
+                ))
+                current_start = ps.start
+                current_end = ps.end
+                current_temp = temp
+
+        # Don't forget the last block
+        slots.append(HeatingSlot(
+            start=current_start,
+            end=current_end,
+            reason="scheduled",
+            target_temperature=current_temp,
+        ))
+
+        _LOGGER.debug("Price proportional schedule: %d temperature slots", len(slots))
+        for slot in slots:
+            _LOGGER.debug(
+                "  %s to %s -> %.1f°C",
+                slot.start.strftime("%Y-%m-%d %H:%M"),
+                slot.end.strftime("%Y-%m-%d %H:%M"),
+                slot.target_temperature,
             )
 
         return slots

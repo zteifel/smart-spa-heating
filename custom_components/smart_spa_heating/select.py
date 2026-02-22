@@ -14,6 +14,7 @@ from .const import (
     CONF_SCHEDULING_ALGORITHM,
     ALGORITHM_INTERVAL,
     ALGORITHM_PEAK_AVOIDANCE,
+    ALGORITHM_PRICE_PROPORTIONAL,
 )
 from .coordinator import SmartSpaHeatingCoordinator
 
@@ -41,7 +42,7 @@ class SchedulingAlgorithmSelect(
     _attr_has_entity_name = True
     _attr_name = "Scheduling Algorithm"
     _attr_icon = "mdi:strategy"
-    _attr_options = [ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE]
+    _attr_options = [ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE, ALGORITHM_PRICE_PROPORTIONAL]
 
     def __init__(
         self,

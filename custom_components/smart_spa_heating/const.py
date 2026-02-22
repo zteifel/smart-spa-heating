@@ -16,6 +16,9 @@ CONF_MANUAL_OVERRIDE_DURATION: Final = "manual_override_duration"
 CONF_NUM_PEAKS: Final = "num_peaks"
 CONF_PEAK_COOLING_TIME: Final = "peak_cooling_time"
 CONF_SCHEDULING_ALGORITHM: Final = "scheduling_algorithm"
+CONF_PP_MAX_TEMPERATURE: Final = "pp_max_temperature"
+CONF_PP_MIN_TEMPERATURE: Final = "pp_min_temperature"
+CONF_LOOKAHEAD_HOURS: Final = "lookahead_hours"
 
 # Default values
 DEFAULT_HEATING_FREQUENCY: Final = 3  # hours
@@ -28,10 +31,14 @@ DEFAULT_MANUAL_OVERRIDE_DURATION: Final = 3  # hours
 DEFAULT_NUM_PEAKS: Final = 3
 DEFAULT_PEAK_COOLING_TIME: Final = 60  # minutes
 DEFAULT_SCHEDULING_ALGORITHM: Final = "interval"
+DEFAULT_PP_MAX_TEMPERATURE: Final = 40.0  # °C
+DEFAULT_PP_MIN_TEMPERATURE: Final = 34.0  # °C
+DEFAULT_LOOKAHEAD_HOURS: Final = 3  # hours
 
 # Algorithm choices
 ALGORITHM_INTERVAL: Final = "interval"
 ALGORITHM_PEAK_AVOIDANCE: Final = "peak_avoidance"
+ALGORITHM_PRICE_PROPORTIONAL: Final = "price_proportional"
 
 # Limits
 MIN_HEATING_FREQUENCY: Final = 1
@@ -52,6 +59,12 @@ MIN_NUM_PEAKS: Final = 1
 MAX_NUM_PEAKS: Final = 20
 MIN_PEAK_COOLING_TIME: Final = 15
 MAX_PEAK_COOLING_TIME: Final = 480
+MIN_PP_MAX_TEMPERATURE: Final = 20.0
+MAX_PP_MAX_TEMPERATURE: Final = 42.0
+MIN_PP_MIN_TEMPERATURE: Final = 5.0
+MAX_PP_MIN_TEMPERATURE: Final = 42.0
+MIN_LOOKAHEAD_HOURS: Final = 1
+MAX_LOOKAHEAD_HOURS: Final = 12
 
 # Platforms
 PLATFORMS: Final = ["switch", "sensor", "binary_sensor", "number", "button", "select"]

@@ -22,7 +22,10 @@
           "manual_override_duration": "Manual Override Duration (hours)",
           "scheduling_algorithm": "Scheduling Algorithm",
           "num_peaks": "Number of Peaks",
-          "peak_cooling_time": "Peak Cooling Time (minutes)"
+          "peak_cooling_time": "Peak Cooling Time (minutes)",
+          "pp_max_temperature": "Max Temperature - Price Proportional (°C)",
+          "pp_min_temperature": "Min Temperature - Price Proportional (°C)",
+          "lookahead_hours": "Lookahead Hours"
         }
       }
     },
@@ -49,7 +52,10 @@
           "idle_temperature": "Idle Temperature (°C)",
           "manual_override_duration": "Manual Override Duration (hours)",
           "scheduling_algorithm": "Scheduling Algorithm",
-          "num_peaks": "Number of Peaks"
+          "num_peaks": "Number of Peaks",
+          "pp_max_temperature": "Max Temperature - Price Proportional (°C)",
+          "pp_min_temperature": "Min Temperature - Price Proportional (°C)",
+          "lookahead_hours": "Lookahead Hours"
         }
       }
     },
@@ -115,6 +121,15 @@
       },
       "peak_cooling_time": {
         "name": "Peak Cooling Time"
+      },
+      "pp_max_temperature": {
+        "name": "Max Temperature (Price Proportional)"
+      },
+      "pp_min_temperature": {
+        "name": "Min Temperature (Price Proportional)"
+      },
+      "lookahead_hours": {
+        "name": "Lookahead Hours"
       }
     },
     "select": {
@@ -122,7 +137,8 @@
         "name": "Scheduling Algorithm",
         "state": {
           "interval": "Interval",
-          "peak_avoidance": "Peak Avoidance"
+          "peak_avoidance": "Peak Avoidance",
+          "price_proportional": "Price Proportional"
         }
       }
     },

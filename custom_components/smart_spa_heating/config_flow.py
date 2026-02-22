@@ -47,6 +47,19 @@ from .const import (
     DEFAULT_SCHEDULING_ALGORITHM,
     ALGORITHM_INTERVAL,
     ALGORITHM_PEAK_AVOIDANCE,
+    ALGORITHM_PRICE_PROPORTIONAL,
+    CONF_PP_MAX_TEMPERATURE,
+    CONF_PP_MIN_TEMPERATURE,
+    CONF_LOOKAHEAD_HOURS,
+    DEFAULT_PP_MAX_TEMPERATURE,
+    DEFAULT_PP_MIN_TEMPERATURE,
+    DEFAULT_LOOKAHEAD_HOURS,
+    MIN_PP_MAX_TEMPERATURE,
+    MAX_PP_MAX_TEMPERATURE,
+    MIN_PP_MIN_TEMPERATURE,
+    MAX_PP_MIN_TEMPERATURE,
+    MIN_LOOKAHEAD_HOURS,
+    MAX_LOOKAHEAD_HOURS,
     MIN_HEATING_FREQUENCY,
     MAX_HEATING_FREQUENCY,
     MIN_HEATING_DURATION,
@@ -95,6 +108,9 @@ def get_settings_schema(
     scheduling_algorithm: str = DEFAULT_SCHEDULING_ALGORITHM,
     num_peaks: int = DEFAULT_NUM_PEAKS,
     peak_cooling_time: float = DEFAULT_PEAK_COOLING_TIME,
+    pp_max_temperature: float = DEFAULT_PP_MAX_TEMPERATURE,
+    pp_min_temperature: float = DEFAULT_PP_MIN_TEMPERATURE,
+    lookahead_hours: int = DEFAULT_LOOKAHEAD_HOURS,
 ) -> vol.Schema:
     """Return schema for settings step."""
     return vol.Schema(
@@ -178,7 +194,7 @@ def get_settings_schema(
                 CONF_SCHEDULING_ALGORITHM, default=scheduling_algorithm
             ): SelectSelector(
                 SelectSelectorConfig(
-                    options=[ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE],
+                    options=[ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE, ALGORITHM_PRICE_PROPORTIONAL],
                     mode=SelectSelectorMode.DROPDOWN,
                 )
             ),
@@ -201,6 +217,39 @@ def get_settings_schema(
                     step=15,
                     mode=NumberSelectorMode.BOX,
                     unit_of_measurement="minutes",
+                )
+            ),
+            vol.Required(
+                CONF_PP_MAX_TEMPERATURE, default=pp_max_temperature
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_PP_MAX_TEMPERATURE,
+                    max=MAX_PP_MAX_TEMPERATURE,
+                    step=0.5,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="°C",
+                )
+            ),
+            vol.Required(
+                CONF_PP_MIN_TEMPERATURE, default=pp_min_temperature
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_PP_MIN_TEMPERATURE,
+                    max=MAX_PP_MIN_TEMPERATURE,
+                    step=0.5,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="°C",
+                )
+            ),
+            vol.Required(
+                CONF_LOOKAHEAD_HOURS, default=lookahead_hours
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_LOOKAHEAD_HOURS,
+                    max=MAX_LOOKAHEAD_HOURS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="hours",
                 )
             ),
         }
@@ -323,6 +372,9 @@ class SmartSpaHeatingOptionsFlow(config_entries.OptionsFlow):
                 scheduling_algorithm=current.get(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM),
                 num_peaks=current.get(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS),
                 peak_cooling_time=current.get(CONF_PEAK_COOLING_TIME, DEFAULT_PEAK_COOLING_TIME),
+                pp_max_temperature=current.get(CONF_PP_MAX_TEMPERATURE, DEFAULT_PP_MAX_TEMPERATURE),
+                pp_min_temperature=current.get(CONF_PP_MIN_TEMPERATURE, DEFAULT_PP_MIN_TEMPERATURE),
+                lookahead_hours=current.get(CONF_LOOKAHEAD_HOURS, DEFAULT_LOOKAHEAD_HOURS),
             ),
             errors=errors,
         )
