@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, ALGORITHM_PRICE_PROPORTIONAL
 from .coordinator import SmartSpaHeatingCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -219,6 +219,13 @@ class PlannedTemperatureSensor(SmartSpaSensorBase):
     @property
     def native_value(self) -> float:
         """Return the current planned temperature."""
+        if self.coordinator.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
+            now = dt_util.now()
+            for slot in self.coordinator.schedule:
+                if slot.start <= now < slot.end and slot.target_temperature is not None:
+                    return slot.target_temperature
+            return self.coordinator.pp_min_temperature
+
         if self.coordinator.heating_active:
             return self.coordinator.heating_temperature
         return self.coordinator.idle_temperature
@@ -226,6 +233,80 @@ class PlannedTemperatureSensor(SmartSpaSensorBase):
     @property
     def extra_state_attributes(self) -> dict:
         """Return planned temperature timeline for ApexCharts."""
+        if self.coordinator.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
+            return self._build_price_proportional_attributes()
+        return self._build_interval_attributes()
+
+    def _build_price_proportional_attributes(self) -> dict:
+        """Build timeline attributes for price proportional algorithm."""
+        now = dt_util.now()
+        schedule = self.coordinator.schedule
+        min_temp = self.coordinator.pp_min_temperature
+        max_temp = self.coordinator.pp_max_temperature
+
+        timeline = []
+
+        # Find current or first future slot for initial state
+        current_temp = min_temp
+        for slot in schedule:
+            if slot.start <= now < slot.end and slot.target_temperature is not None:
+                current_temp = slot.target_temperature
+                break
+
+        timeline.append({
+            "time": now.isoformat(),
+            "temperature": current_temp,
+            "state": "proportional"
+        })
+
+        for slot in schedule:
+            if slot.end <= now:
+                continue
+            if slot.target_temperature is None:
+                continue
+
+            start_time = max(slot.start, now)
+
+            # Step transition at slot start
+            timeline.append({
+                "time": start_time.isoformat(),
+                "temperature": slot.target_temperature,
+                "state": "proportional"
+            })
+
+            # Hold until slot end
+            timeline.append({
+                "time": slot.end.isoformat(),
+                "temperature": slot.target_temperature,
+                "state": "proportional"
+            })
+
+        # End point at 24 hours
+        end_time = now + timedelta(hours=24)
+        timeline.append({
+            "time": end_time.isoformat(),
+            "temperature": min_temp,
+            "state": "proportional"
+        })
+
+        timeline.sort(key=lambda x: x["time"])
+
+        data_series = []
+        for point in timeline:
+            ts = datetime.fromisoformat(point["time"])
+            timestamp_ms = int(ts.timestamp() * 1000)
+            data_series.append([timestamp_ms, point["temperature"]])
+
+        return {
+            "timeline": timeline,
+            "data": data_series,
+            "max_temperature": max_temp,
+            "min_temperature": min_temp,
+            "heating_active": self.coordinator.heating_active,
+        }
+
+    def _build_interval_attributes(self) -> dict:
+        """Build timeline attributes for interval/peak avoidance algorithms."""
         now = dt_util.now()
         schedule = self.coordinator.schedule
         heating_temp = self.coordinator.heating_temperature
