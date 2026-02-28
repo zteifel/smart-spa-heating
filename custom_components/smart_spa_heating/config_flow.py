@@ -16,68 +16,32 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
 )
 
 from .const import (
     DOMAIN,
     CONF_NORDPOOL_ENTITY,
     CONF_CLIMATE_ENTITY,
-    CONF_HEATING_FREQUENCY,
-    CONF_HEATING_DURATION,
-    CONF_PRICE_THRESHOLD,
-    CONF_HIGH_PRICE_THRESHOLD,
-    CONF_HEATING_TEMPERATURE,
-    CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
-    CONF_NUM_PEAKS,
-    CONF_PEAK_COOLING_TIME,
-    CONF_SCHEDULING_ALGORITHM,
-    DEFAULT_HEATING_FREQUENCY,
-    DEFAULT_HEATING_DURATION,
-    DEFAULT_PRICE_THRESHOLD,
-    DEFAULT_HIGH_PRICE_THRESHOLD,
-    DEFAULT_HEATING_TEMPERATURE,
-    DEFAULT_IDLE_TEMPERATURE,
-    DEFAULT_MANUAL_OVERRIDE_DURATION,
-    DEFAULT_NUM_PEAKS,
-    DEFAULT_PEAK_COOLING_TIME,
-    DEFAULT_SCHEDULING_ALGORITHM,
-    ALGORITHM_INTERVAL,
-    ALGORITHM_PEAK_AVOIDANCE,
-    ALGORITHM_PRICE_PROPORTIONAL,
     CONF_PP_MAX_TEMPERATURE,
     CONF_PP_MIN_TEMPERATURE,
     CONF_LOOKAHEAD_HOURS,
+    CONF_PRICE_WINDOW_HOURS,
+    DEFAULT_MANUAL_OVERRIDE_DURATION,
     DEFAULT_PP_MAX_TEMPERATURE,
     DEFAULT_PP_MIN_TEMPERATURE,
     DEFAULT_LOOKAHEAD_HOURS,
+    DEFAULT_PRICE_WINDOW_HOURS,
+    MIN_MANUAL_OVERRIDE_DURATION,
+    MAX_MANUAL_OVERRIDE_DURATION,
     MIN_PP_MAX_TEMPERATURE,
     MAX_PP_MAX_TEMPERATURE,
     MIN_PP_MIN_TEMPERATURE,
     MAX_PP_MIN_TEMPERATURE,
     MIN_LOOKAHEAD_HOURS,
     MAX_LOOKAHEAD_HOURS,
-    MIN_HEATING_FREQUENCY,
-    MAX_HEATING_FREQUENCY,
-    MIN_HEATING_DURATION,
-    MAX_HEATING_DURATION,
-    MIN_PRICE_THRESHOLD,
-    MAX_PRICE_THRESHOLD,
-    MIN_HIGH_PRICE_THRESHOLD,
-    MAX_HIGH_PRICE_THRESHOLD,
-    MIN_HEATING_TEMPERATURE,
-    MAX_HEATING_TEMPERATURE,
-    MIN_IDLE_TEMPERATURE,
-    MAX_IDLE_TEMPERATURE,
-    MIN_MANUAL_OVERRIDE_DURATION,
-    MAX_MANUAL_OVERRIDE_DURATION,
-    MIN_NUM_PEAKS,
-    MAX_NUM_PEAKS,
-    MIN_PEAK_COOLING_TIME,
-    MAX_PEAK_COOLING_TIME,
+    MIN_PRICE_WINDOW_HOURS,
+    MAX_PRICE_WINDOW_HOURS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,127 +62,15 @@ def get_entity_schema() -> vol.Schema:
 
 
 def get_settings_schema(
-    heating_frequency: float = DEFAULT_HEATING_FREQUENCY,
-    heating_duration: float = DEFAULT_HEATING_DURATION,
-    price_threshold: float = DEFAULT_PRICE_THRESHOLD,
-    high_price_threshold: float = DEFAULT_HIGH_PRICE_THRESHOLD,
-    heating_temperature: float = DEFAULT_HEATING_TEMPERATURE,
-    idle_temperature: float = DEFAULT_IDLE_TEMPERATURE,
     manual_override_duration: float = DEFAULT_MANUAL_OVERRIDE_DURATION,
-    scheduling_algorithm: str = DEFAULT_SCHEDULING_ALGORITHM,
-    num_peaks: int = DEFAULT_NUM_PEAKS,
-    peak_cooling_time: float = DEFAULT_PEAK_COOLING_TIME,
     pp_max_temperature: float = DEFAULT_PP_MAX_TEMPERATURE,
     pp_min_temperature: float = DEFAULT_PP_MIN_TEMPERATURE,
     lookahead_hours: int = DEFAULT_LOOKAHEAD_HOURS,
+    price_window_hours: int = DEFAULT_PRICE_WINDOW_HOURS,
 ) -> vol.Schema:
     """Return schema for settings step."""
     return vol.Schema(
         {
-            vol.Required(
-                CONF_HEATING_FREQUENCY, default=heating_frequency
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_HEATING_FREQUENCY,
-                    max=MAX_HEATING_FREQUENCY,
-                    step=1,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="hours",
-                )
-            ),
-            vol.Required(
-                CONF_HEATING_DURATION, default=heating_duration
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_HEATING_DURATION,
-                    max=MAX_HEATING_DURATION,
-                    step=15,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="minutes",
-                )
-            ),
-            vol.Required(
-                CONF_PRICE_THRESHOLD, default=price_threshold
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_PRICE_THRESHOLD,
-                    max=MAX_PRICE_THRESHOLD,
-                    step=0.01,
-                    mode=NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_HIGH_PRICE_THRESHOLD, default=high_price_threshold
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_HIGH_PRICE_THRESHOLD,
-                    max=MAX_HIGH_PRICE_THRESHOLD,
-                    step=0.01,
-                    mode=NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_HEATING_TEMPERATURE, default=heating_temperature
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_HEATING_TEMPERATURE,
-                    max=MAX_HEATING_TEMPERATURE,
-                    step=0.5,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="°C",
-                )
-            ),
-            vol.Required(
-                CONF_IDLE_TEMPERATURE, default=idle_temperature
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_IDLE_TEMPERATURE,
-                    max=MAX_IDLE_TEMPERATURE,
-                    step=0.5,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="°C",
-                )
-            ),
-            vol.Required(
-                CONF_MANUAL_OVERRIDE_DURATION, default=manual_override_duration
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_MANUAL_OVERRIDE_DURATION,
-                    max=MAX_MANUAL_OVERRIDE_DURATION,
-                    step=1,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="hours",
-                )
-            ),
-            vol.Required(
-                CONF_SCHEDULING_ALGORITHM, default=scheduling_algorithm
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    options=[ALGORITHM_INTERVAL, ALGORITHM_PEAK_AVOIDANCE, ALGORITHM_PRICE_PROPORTIONAL],
-                    mode=SelectSelectorMode.DROPDOWN,
-                )
-            ),
-            vol.Required(
-                CONF_NUM_PEAKS, default=num_peaks
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_NUM_PEAKS,
-                    max=MAX_NUM_PEAKS,
-                    step=1,
-                    mode=NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_PEAK_COOLING_TIME, default=peak_cooling_time
-            ): NumberSelector(
-                NumberSelectorConfig(
-                    min=MIN_PEAK_COOLING_TIME,
-                    max=MAX_PEAK_COOLING_TIME,
-                    step=15,
-                    mode=NumberSelectorMode.BOX,
-                    unit_of_measurement="minutes",
-                )
-            ),
             vol.Required(
                 CONF_PP_MAX_TEMPERATURE, default=pp_max_temperature
             ): NumberSelector(
@@ -247,6 +99,28 @@ def get_settings_schema(
                 NumberSelectorConfig(
                     min=MIN_LOOKAHEAD_HOURS,
                     max=MAX_LOOKAHEAD_HOURS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="hours",
+                )
+            ),
+            vol.Required(
+                CONF_PRICE_WINDOW_HOURS, default=price_window_hours
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_PRICE_WINDOW_HOURS,
+                    max=MAX_PRICE_WINDOW_HOURS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="hours",
+                )
+            ),
+            vol.Required(
+                CONF_MANUAL_OVERRIDE_DURATION, default=manual_override_duration
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_MANUAL_OVERRIDE_DURATION,
+                    max=MAX_MANUAL_OVERRIDE_DURATION,
                     step=1,
                     mode=NumberSelectorMode.BOX,
                     unit_of_measurement="hours",
@@ -306,8 +180,8 @@ class SmartSpaHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             # Validate temperature settings
-            if user_input[CONF_IDLE_TEMPERATURE] >= user_input[CONF_HEATING_TEMPERATURE]:
-                errors["base"] = "idle_temp_too_high"
+            if user_input[CONF_PP_MIN_TEMPERATURE] >= user_input[CONF_PP_MAX_TEMPERATURE]:
+                errors["base"] = "min_temp_too_high"
             else:
                 self._data.update(user_input)
 
@@ -351,8 +225,8 @@ class SmartSpaHeatingOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            if user_input[CONF_IDLE_TEMPERATURE] >= user_input[CONF_HEATING_TEMPERATURE]:
-                errors["base"] = "idle_temp_too_high"
+            if user_input[CONF_PP_MIN_TEMPERATURE] >= user_input[CONF_PP_MAX_TEMPERATURE]:
+                errors["base"] = "min_temp_too_high"
             else:
                 return self.async_create_entry(title="", data=user_input)
 
@@ -362,19 +236,11 @@ class SmartSpaHeatingOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=get_settings_schema(
-                heating_frequency=current.get(CONF_HEATING_FREQUENCY, DEFAULT_HEATING_FREQUENCY),
-                heating_duration=current.get(CONF_HEATING_DURATION, DEFAULT_HEATING_DURATION),
-                price_threshold=current.get(CONF_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD),
-                high_price_threshold=current.get(CONF_HIGH_PRICE_THRESHOLD, DEFAULT_HIGH_PRICE_THRESHOLD),
-                heating_temperature=current.get(CONF_HEATING_TEMPERATURE, DEFAULT_HEATING_TEMPERATURE),
-                idle_temperature=current.get(CONF_IDLE_TEMPERATURE, DEFAULT_IDLE_TEMPERATURE),
                 manual_override_duration=current.get(CONF_MANUAL_OVERRIDE_DURATION, DEFAULT_MANUAL_OVERRIDE_DURATION),
-                scheduling_algorithm=current.get(CONF_SCHEDULING_ALGORITHM, DEFAULT_SCHEDULING_ALGORITHM),
-                num_peaks=current.get(CONF_NUM_PEAKS, DEFAULT_NUM_PEAKS),
-                peak_cooling_time=current.get(CONF_PEAK_COOLING_TIME, DEFAULT_PEAK_COOLING_TIME),
                 pp_max_temperature=current.get(CONF_PP_MAX_TEMPERATURE, DEFAULT_PP_MAX_TEMPERATURE),
                 pp_min_temperature=current.get(CONF_PP_MIN_TEMPERATURE, DEFAULT_PP_MIN_TEMPERATURE),
                 lookahead_hours=current.get(CONF_LOOKAHEAD_HOURS, DEFAULT_LOOKAHEAD_HOURS),
+                price_window_hours=current.get(CONF_PRICE_WINDOW_HOURS, DEFAULT_PRICE_WINDOW_HOURS),
             ),
             errors=errors,
         )

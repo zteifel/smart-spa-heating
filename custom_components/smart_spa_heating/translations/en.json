@@ -13,26 +13,18 @@
         "title": "Configure Settings",
         "description": "Configure the heating schedule settings.",
         "data": {
-          "heating_frequency": "Heating Frequency (hours)",
-          "heating_duration": "Heating Duration (minutes)",
-          "price_threshold": "Price Threshold (always heat below)",
-          "high_price_threshold": "High Price Threshold (never heat above)",
-          "heating_temperature": "Heating Temperature (°C)",
-          "idle_temperature": "Idle Temperature (°C)",
-          "manual_override_duration": "Manual Override Duration (hours)",
-          "scheduling_algorithm": "Scheduling Algorithm",
-          "num_peaks": "Number of Peaks",
-          "peak_cooling_time": "Peak Cooling Time (minutes)",
-          "pp_max_temperature": "Max Temperature - Price Proportional (°C)",
-          "pp_min_temperature": "Min Temperature - Price Proportional (°C)",
-          "lookahead_hours": "Lookahead Hours"
+          "pp_max_temperature": "Max Temperature (°C)",
+          "pp_min_temperature": "Min Temperature (°C)",
+          "lookahead_hours": "Lookahead Hours",
+          "price_window_hours": "Price Window Hours (0 = all prices)",
+          "manual_override_duration": "Manual Override Duration (hours)"
         }
       }
     },
     "error": {
       "entity_not_found": "Entity not found",
       "invalid_nordpool": "Invalid Nordpool entity - missing 'today' attribute",
-      "idle_temp_too_high": "Idle temperature must be lower than heating temperature"
+      "min_temp_too_high": "Min temperature must be lower than max temperature"
     },
     "abort": {
       "already_configured": "Device is already configured"
@@ -44,23 +36,16 @@
         "title": "Configure Settings",
         "description": "Adjust the heating schedule settings.",
         "data": {
-          "heating_frequency": "Heating Frequency (hours)",
-          "heating_duration": "Heating Duration (minutes)",
-          "price_threshold": "Price Threshold (always heat below)",
-          "high_price_threshold": "High Price Threshold (never heat above)",
-          "heating_temperature": "Heating Temperature (°C)",
-          "idle_temperature": "Idle Temperature (°C)",
-          "manual_override_duration": "Manual Override Duration (hours)",
-          "scheduling_algorithm": "Scheduling Algorithm",
-          "num_peaks": "Number of Peaks",
-          "pp_max_temperature": "Max Temperature - Price Proportional (°C)",
-          "pp_min_temperature": "Min Temperature - Price Proportional (°C)",
-          "lookahead_hours": "Lookahead Hours"
+          "pp_max_temperature": "Max Temperature (°C)",
+          "pp_min_temperature": "Min Temperature (°C)",
+          "lookahead_hours": "Lookahead Hours",
+          "price_window_hours": "Price Window Hours (0 = all prices)",
+          "manual_override_duration": "Manual Override Duration (hours)"
         }
       }
     },
     "error": {
-      "idle_temp_too_high": "Idle temperature must be lower than heating temperature"
+      "min_temp_too_high": "Min temperature must be lower than max temperature"
     }
   },
   "entity": {
@@ -95,51 +80,20 @@
       }
     },
     "number": {
-      "heating_frequency": {
-        "name": "Heating Frequency"
-      },
-      "heating_duration": {
-        "name": "Heating Duration"
-      },
-      "price_threshold": {
-        "name": "Price Threshold"
-      },
-      "high_price_threshold": {
-        "name": "High Price Threshold"
-      },
-      "heating_temperature": {
-        "name": "Heating Temperature"
-      },
-      "idle_temperature": {
-        "name": "Idle Temperature"
-      },
       "manual_override_duration": {
         "name": "Manual Override Duration"
       },
-      "num_peaks": {
-        "name": "Number of Peaks"
-      },
-      "peak_cooling_time": {
-        "name": "Peak Cooling Time"
-      },
       "pp_max_temperature": {
-        "name": "Max Temperature (Price Proportional)"
+        "name": "Max Temperature"
       },
       "pp_min_temperature": {
-        "name": "Min Temperature (Price Proportional)"
+        "name": "Min Temperature"
       },
       "lookahead_hours": {
         "name": "Lookahead Hours"
-      }
-    },
-    "select": {
-      "scheduling_algorithm": {
-        "name": "Scheduling Algorithm",
-        "state": {
-          "interval": "Interval",
-          "peak_avoidance": "Peak Avoidance",
-          "price_proportional": "Price Proportional"
-        }
+      },
+      "price_window_hours": {
+        "name": "Price Window Hours"
       }
     },
     "button": {
@@ -157,7 +111,7 @@
   "services": {
     "force_heat": {
       "name": "Force Heat",
-      "description": "Force the spa to start heating immediately for the configured duration."
+      "description": "Force the spa to start heating immediately at max temperature."
     },
     "skip_next": {
       "name": "Skip Next Heating",

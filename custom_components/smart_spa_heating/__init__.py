@@ -11,14 +11,6 @@ from homeassistant.core import HomeAssistant
 from .const import (
     DOMAIN,
     PLATFORMS,
-    CONF_NORDPOOL_ENTITY,
-    CONF_CLIMATE_ENTITY,
-    CONF_HEATING_FREQUENCY,
-    CONF_HEATING_DURATION,
-    CONF_PRICE_THRESHOLD,
-    CONF_HEATING_TEMPERATURE,
-    CONF_IDLE_TEMPERATURE,
-    CONF_MANUAL_OVERRIDE_DURATION,
 )
 from .coordinator import SmartSpaHeatingCoordinator
 

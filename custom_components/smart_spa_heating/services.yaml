@@ -1,6 +1,6 @@
 force_heat:
   name: Force Heat
-  description: Force the spa to start heating immediately for the configured duration.
+  description: Force the spa to start heating immediately at max temperature.
   target:
     entity:
       integration: smart_spa_heating

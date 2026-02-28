@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, ALGORITHM_PRICE_PROPORTIONAL
+from .const import DOMAIN
 from .coordinator import SmartSpaHeatingCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -136,17 +136,6 @@ class CurrentPriceSensor(SmartSpaSensorBase):
         """Return the current price."""
         return self.coordinator.current_price
 
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional price info."""
-        return {
-            "below_threshold": (
-                self.coordinator.current_price is not None
-                and self.coordinator.current_price < self.coordinator.price_threshold
-            ),
-            "threshold": self.coordinator.price_threshold,
-        }
-
 
 class ManualOverrideRemainingSensor(SmartSpaSensorBase):
     """Sensor showing remaining time in manual override."""
@@ -219,26 +208,15 @@ class PlannedTemperatureSensor(SmartSpaSensorBase):
     @property
     def native_value(self) -> float:
         """Return the current planned temperature."""
-        if self.coordinator.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
-            now = dt_util.now()
-            for slot in self.coordinator.schedule:
-                if slot.start <= now < slot.end and slot.target_temperature is not None:
-                    return slot.target_temperature
-            return self.coordinator.pp_min_temperature
-
-        if self.coordinator.heating_active:
-            return self.coordinator.heating_temperature
-        return self.coordinator.idle_temperature
+        now = dt_util.now()
+        for slot in self.coordinator.schedule:
+            if slot.start <= now < slot.end and slot.target_temperature is not None:
+                return slot.target_temperature
+        return self.coordinator.pp_min_temperature
 
     @property
     def extra_state_attributes(self) -> dict:
         """Return planned temperature timeline for ApexCharts."""
-        if self.coordinator.scheduling_algorithm == ALGORITHM_PRICE_PROPORTIONAL:
-            return self._build_price_proportional_attributes()
-        return self._build_interval_attributes()
-
-    def _build_price_proportional_attributes(self) -> dict:
-        """Build timeline attributes for price proportional algorithm."""
         now = dt_util.now()
         schedule = self.coordinator.schedule
         min_temp = self.coordinator.pp_min_temperature
@@ -302,92 +280,5 @@ class PlannedTemperatureSensor(SmartSpaSensorBase):
             "data": data_series,
             "max_temperature": max_temp,
             "min_temperature": min_temp,
-            "heating_active": self.coordinator.heating_active,
-        }
-
-    def _build_interval_attributes(self) -> dict:
-        """Build timeline attributes for interval/peak avoidance algorithms."""
-        now = dt_util.now()
-        schedule = self.coordinator.schedule
-        heating_temp = self.coordinator.heating_temperature
-        idle_temp = self.coordinator.idle_temperature
-
-        # Build timeline of temperature changes for next 24 hours
-        timeline = []
-
-        # Start with current state
-        if self.coordinator.heating_active:
-            timeline.append({
-                "time": now.isoformat(),
-                "temperature": heating_temp,
-                "state": "heating"
-            })
-        else:
-            timeline.append({
-                "time": now.isoformat(),
-                "temperature": idle_temp,
-                "state": "idle"
-            })
-
-        # Add all scheduled heating slots
-        for slot in schedule:
-            if slot.end < now:
-                continue  # Skip past slots
-
-            # Add point just before heating starts (if in future)
-            if slot.start > now:
-                # Point at idle temp just before heating
-                timeline.append({
-                    "time": (slot.start - timedelta(seconds=1)).isoformat(),
-                    "temperature": idle_temp,
-                    "state": "idle"
-                })
-
-            # Heating start
-            start_time = max(slot.start, now)
-            timeline.append({
-                "time": start_time.isoformat(),
-                "temperature": heating_temp,
-                "state": "heating"
-            })
-
-            # Heating end
-            timeline.append({
-                "time": slot.end.isoformat(),
-                "temperature": heating_temp,
-                "state": "heating"
-            })
-
-            # Back to idle after heating
-            timeline.append({
-                "time": (slot.end + timedelta(seconds=1)).isoformat(),
-                "temperature": idle_temp,
-                "state": "idle"
-            })
-
-        # Add end point at 24 hours
-        end_time = now + timedelta(hours=24)
-        timeline.append({
-            "time": end_time.isoformat(),
-            "temperature": idle_temp,
-            "state": "idle"
-        })
-
-        # Sort by time and remove duplicates
-        timeline.sort(key=lambda x: x["time"])
-
-        # Create data series format for ApexCharts
-        # Format: [[timestamp_ms, value], ...]
-        data_series = []
-        for point in timeline:
-            ts = datetime.fromisoformat(point["time"])
-            timestamp_ms = int(ts.timestamp() * 1000)
-            data_series.append([timestamp_ms, point["temperature"]])
-
-        return {
-            "timeline": timeline,
-            "data": data_series,
-            "heating_temperature": heating_temp,
-            "idle_temperature": idle_temp,
             "heating_active": self.coordinator.heating_active,
         }

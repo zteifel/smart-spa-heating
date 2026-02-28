@@ -12,42 +12,21 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    CONF_HEATING_FREQUENCY,
-    CONF_HEATING_DURATION,
-    CONF_PRICE_THRESHOLD,
-    CONF_HIGH_PRICE_THRESHOLD,
-    CONF_HEATING_TEMPERATURE,
-    CONF_IDLE_TEMPERATURE,
     CONF_MANUAL_OVERRIDE_DURATION,
-    CONF_NUM_PEAKS,
-    CONF_PEAK_COOLING_TIME,
     CONF_PP_MAX_TEMPERATURE,
     CONF_PP_MIN_TEMPERATURE,
     CONF_LOOKAHEAD_HOURS,
-    MIN_HEATING_FREQUENCY,
-    MAX_HEATING_FREQUENCY,
-    MIN_HEATING_DURATION,
-    MAX_HEATING_DURATION,
-    MIN_PRICE_THRESHOLD,
-    MAX_PRICE_THRESHOLD,
-    MIN_HIGH_PRICE_THRESHOLD,
-    MAX_HIGH_PRICE_THRESHOLD,
-    MIN_HEATING_TEMPERATURE,
-    MAX_HEATING_TEMPERATURE,
-    MIN_IDLE_TEMPERATURE,
-    MAX_IDLE_TEMPERATURE,
+    CONF_PRICE_WINDOW_HOURS,
     MIN_MANUAL_OVERRIDE_DURATION,
     MAX_MANUAL_OVERRIDE_DURATION,
-    MIN_NUM_PEAKS,
-    MAX_NUM_PEAKS,
-    MIN_PEAK_COOLING_TIME,
-    MAX_PEAK_COOLING_TIME,
     MIN_PP_MAX_TEMPERATURE,
     MAX_PP_MAX_TEMPERATURE,
     MIN_PP_MIN_TEMPERATURE,
     MAX_PP_MIN_TEMPERATURE,
     MIN_LOOKAHEAD_HOURS,
     MAX_LOOKAHEAD_HOURS,
+    MIN_PRICE_WINDOW_HOURS,
+    MAX_PRICE_WINDOW_HOURS,
 )
 from .coordinator import SmartSpaHeatingCoordinator
 
@@ -63,18 +42,11 @@ async def async_setup_entry(
     coordinator: SmartSpaHeatingCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities([
-        HeatingFrequencyNumber(coordinator, entry),
-        HeatingDurationNumber(coordinator, entry),
-        PriceThresholdNumber(coordinator, entry),
-        HighPriceThresholdNumber(coordinator, entry),
-        HeatingTemperatureNumber(coordinator, entry),
-        IdleTemperatureNumber(coordinator, entry),
         ManualOverrideDurationNumber(coordinator, entry),
-        NumPeaksNumber(coordinator, entry),
-        PeakCoolingTimeNumber(coordinator, entry),
         PpMaxTemperatureNumber(coordinator, entry),
         PpMinTemperatureNumber(coordinator, entry),
         LookaheadHoursNumber(coordinator, entry),
+        PriceWindowHoursNumber(coordinator, entry),
     ])
 
 
@@ -113,154 +85,6 @@ class SmartSpaNumberBase(CoordinatorEntity[SmartSpaHeatingCoordinator], NumberEn
         )
 
 
-class HeatingFrequencyNumber(SmartSpaNumberBase):
-    """Number entity for heating frequency."""
-
-    _attr_name = "Heating Frequency"
-    _attr_icon = "mdi:timer-outline"
-    _attr_native_min_value = MIN_HEATING_FREQUENCY
-    _attr_native_max_value = MAX_HEATING_FREQUENCY
-    _attr_native_step = 1
-    _attr_native_unit_of_measurement = "hours"
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_HEATING_FREQUENCY)
-        self._attr_unique_id = f"{entry.entry_id}_heating_frequency"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.heating_frequency
-
-
-class HeatingDurationNumber(SmartSpaNumberBase):
-    """Number entity for heating duration."""
-
-    _attr_name = "Heating Duration"
-    _attr_icon = "mdi:timer-sand"
-    _attr_native_min_value = MIN_HEATING_DURATION
-    _attr_native_max_value = MAX_HEATING_DURATION
-    _attr_native_step = 15
-    _attr_native_unit_of_measurement = "minutes"
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_HEATING_DURATION)
-        self._attr_unique_id = f"{entry.entry_id}_heating_duration"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.heating_duration
-
-
-class PriceThresholdNumber(SmartSpaNumberBase):
-    """Number entity for price threshold."""
-
-    _attr_name = "Price Threshold"
-    _attr_icon = "mdi:cash"
-    _attr_native_min_value = MIN_PRICE_THRESHOLD
-    _attr_native_max_value = MAX_PRICE_THRESHOLD
-    _attr_native_step = 0.01
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_PRICE_THRESHOLD)
-        self._attr_unique_id = f"{entry.entry_id}_price_threshold"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.price_threshold
-
-
-class HighPriceThresholdNumber(SmartSpaNumberBase):
-    """Number entity for high price threshold (never heat above)."""
-
-    _attr_name = "High Price Threshold"
-    _attr_icon = "mdi:cash-remove"
-    _attr_native_min_value = MIN_HIGH_PRICE_THRESHOLD
-    _attr_native_max_value = MAX_HIGH_PRICE_THRESHOLD
-    _attr_native_step = 0.01
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_HIGH_PRICE_THRESHOLD)
-        self._attr_unique_id = f"{entry.entry_id}_high_price_threshold"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.high_price_threshold
-
-
-class HeatingTemperatureNumber(SmartSpaNumberBase):
-    """Number entity for heating temperature."""
-
-    _attr_name = "Heating Temperature"
-    _attr_icon = "mdi:thermometer-high"
-    _attr_native_min_value = MIN_HEATING_TEMPERATURE
-    _attr_native_max_value = MAX_HEATING_TEMPERATURE
-    _attr_native_step = 0.5
-    _attr_native_unit_of_measurement = "°C"
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_HEATING_TEMPERATURE)
-        self._attr_unique_id = f"{entry.entry_id}_heating_temperature"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.heating_temperature
-
-
-class IdleTemperatureNumber(SmartSpaNumberBase):
-    """Number entity for idle temperature."""
-
-    _attr_name = "Idle Temperature"
-    _attr_icon = "mdi:thermometer-low"
-    _attr_native_min_value = MIN_IDLE_TEMPERATURE
-    _attr_native_max_value = MAX_IDLE_TEMPERATURE
-    _attr_native_step = 0.5
-    _attr_native_unit_of_measurement = "°C"
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_IDLE_TEMPERATURE)
-        self._attr_unique_id = f"{entry.entry_id}_idle_temperature"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.idle_temperature
-
-
 class ManualOverrideDurationNumber(SmartSpaNumberBase):
     """Number entity for manual override duration."""
 
@@ -286,59 +110,10 @@ class ManualOverrideDurationNumber(SmartSpaNumberBase):
         return self.coordinator.manual_override_duration
 
 
-class NumPeaksNumber(SmartSpaNumberBase):
-    """Number entity for number of peaks to avoid."""
-
-    _attr_name = "Number of Peaks"
-    _attr_icon = "mdi:chart-bell-curve"
-    _attr_native_min_value = MIN_NUM_PEAKS
-    _attr_native_max_value = MAX_NUM_PEAKS
-    _attr_native_step = 1
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_NUM_PEAKS)
-        self._attr_unique_id = f"{entry.entry_id}_num_peaks"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.num_peaks
-
-
-class PeakCoolingTimeNumber(SmartSpaNumberBase):
-    """Number entity for peak cooling time."""
-
-    _attr_name = "Peak Cooling Time"
-    _attr_icon = "mdi:snowflake-thermometer"
-    _attr_native_min_value = MIN_PEAK_COOLING_TIME
-    _attr_native_max_value = MAX_PEAK_COOLING_TIME
-    _attr_native_step = 15
-    _attr_native_unit_of_measurement = "minutes"
-
-    def __init__(
-        self,
-        coordinator: SmartSpaHeatingCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the number entity."""
-        super().__init__(coordinator, entry, CONF_PEAK_COOLING_TIME)
-        self._attr_unique_id = f"{entry.entry_id}_peak_cooling_time"
-
-    @property
-    def native_value(self) -> float:
-        """Return the current value."""
-        return self.coordinator.peak_cooling_time
-
-
 class PpMaxTemperatureNumber(SmartSpaNumberBase):
     """Number entity for price proportional max temperature."""
 
-    _attr_name = "Max Temperature (Price Proportional)"
+    _attr_name = "Max Temperature"
     _attr_icon = "mdi:thermometer-chevron-up"
     _attr_native_min_value = MIN_PP_MAX_TEMPERATURE
     _attr_native_max_value = MAX_PP_MAX_TEMPERATURE
@@ -363,7 +138,7 @@ class PpMaxTemperatureNumber(SmartSpaNumberBase):
 class PpMinTemperatureNumber(SmartSpaNumberBase):
     """Number entity for price proportional min temperature."""
 
-    _attr_name = "Min Temperature (Price Proportional)"
+    _attr_name = "Min Temperature"
     _attr_icon = "mdi:thermometer-chevron-down"
     _attr_native_min_value = MIN_PP_MIN_TEMPERATURE
     _attr_native_max_value = MAX_PP_MIN_TEMPERATURE
@@ -408,3 +183,28 @@ class LookaheadHoursNumber(SmartSpaNumberBase):
     def native_value(self) -> float:
         """Return the current value."""
         return self.coordinator.lookahead_hours
+
+
+class PriceWindowHoursNumber(SmartSpaNumberBase):
+    """Number entity for price window hours."""
+
+    _attr_name = "Price Window Hours"
+    _attr_icon = "mdi:chart-timeline-variant-shimmer"
+    _attr_native_min_value = MIN_PRICE_WINDOW_HOURS
+    _attr_native_max_value = MAX_PRICE_WINDOW_HOURS
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "hours"
+
+    def __init__(
+        self,
+        coordinator: SmartSpaHeatingCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator, entry, CONF_PRICE_WINDOW_HOURS)
+        self._attr_unique_id = f"{entry.entry_id}_price_window_hours"
+
+    @property
+    def native_value(self) -> float:
+        """Return the current value."""
+        return self.coordinator.price_window_hours

@@ -5,7 +5,6 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
-from enum import Enum
 
 from homeassistant.util import dt as dt_util
 
@@ -14,13 +13,6 @@ _LOGGER = logging.getLogger(__name__)
 # Interval detection
 SLOTS_PER_HOUR_15MIN = 4  # 96 values per day
 SLOTS_PER_HOUR_1H = 1     # 24 values per day
-
-
-class SlotStatus(Enum):
-    """Status of a time slot."""
-    UNMARKED = "unmarked"
-    HEATING = "heating"
-    COOLING = "cooling"
 
 
 @dataclass
@@ -46,12 +38,11 @@ class HeatingSlot:
 
 @dataclass
 class PriceSlot:
-    """Represents a time slot with its price and status."""
+    """Represents a time slot with its price."""
 
     start: datetime
     duration: timedelta
     price: float
-    status: SlotStatus = SlotStatus.UNMARKED
 
     @property
     def end(self) -> datetime:
@@ -62,278 +53,6 @@ class PriceSlot:
 class SpaHeatingScheduler:
     """Calculate optimal heating schedule based on prices."""
 
-    def calculate_schedule(
-        self,
-        today_prices: list[float],
-        tomorrow_prices: list[float] | None,
-        heating_frequency_hours: float,
-        heating_duration_minutes: float,
-        price_threshold: float,
-        high_price_threshold: float,
-    ) -> list[HeatingSlot]:
-        """
-        Calculate the optimal heating schedule.
-
-        Algorithm:
-        1. Mark all slots below price_threshold as HEATING (always heat when cheap)
-        2. Mark all slots above high_price_threshold as COOLING (never heat when expensive)
-        3. Find highest price point among unmarked slots, center a cooling interval
-           of heating_frequency_hours around it
-        4. Place heating periods of heating_duration_minutes on either side of the
-           cooling interval
-        5. Repeat until no unmarked interval exceeds heating_frequency_hours
-        """
-        now = dt_util.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Detect interval size from data
-        slots_per_hour = self._detect_slots_per_hour(today_prices, tomorrow_prices)
-        slot_duration = timedelta(minutes=60 // slots_per_hour)
-
-        _LOGGER.debug(
-            "Detected %d slots per hour (%d min intervals)",
-            slots_per_hour, 60 // slots_per_hour
-        )
-
-        # Build list of price slots
-        price_slots = self._build_price_slots(
-            today_prices, tomorrow_prices, today_start, now, slot_duration, slots_per_hour
-        )
-
-        if not price_slots:
-            _LOGGER.warning("No price data available for scheduling")
-            return []
-
-        _LOGGER.debug(
-            "Scheduling with %d price slots, frequency=%dh, duration=%dm, "
-            "low_threshold=%.3f, high_threshold=%.3f",
-            len(price_slots),
-            heating_frequency_hours,
-            heating_duration_minutes,
-            price_threshold,
-            high_price_threshold,
-        )
-
-        # Step 1: Mark all slots below price_threshold as HEATING
-        heating_count = 0
-        for ps in price_slots:
-            if ps.price < price_threshold:
-                ps.status = SlotStatus.HEATING
-                heating_count += 1
-
-        _LOGGER.debug("Marked %d slots as HEATING (below threshold %.3f)", heating_count, price_threshold)
-
-        # Step 2: Mark all slots above high_price_threshold as COOLING
-        cooling_count = 0
-        for ps in price_slots:
-            if ps.status == SlotStatus.UNMARKED and ps.price > high_price_threshold:
-                ps.status = SlotStatus.COOLING
-                cooling_count += 1
-
-        _LOGGER.debug("Marked %d slots as COOLING (above threshold %.3f)", cooling_count, high_price_threshold)
-
-        # Step 3 & 4: Find peaks and create cooling intervals with heating on sides
-        duration = timedelta(minutes=heating_duration_minutes)
-        max_gap = timedelta(hours=heating_frequency_hours)
-
-        iteration = 0
-        max_iterations = 100  # Safety limit
-
-        while iteration < max_iterations:
-            iteration += 1
-
-            # Find the longest unmarked interval
-            longest_gap = self._find_longest_unmarked_gap(price_slots)
-
-            if longest_gap is None or longest_gap["duration"] <= max_gap:
-                _LOGGER.debug(
-                    "No unmarked gap exceeds %.1fh, stopping iteration",
-                    heating_frequency_hours
-                )
-                break
-
-            _LOGGER.debug(
-                "Iteration %d: Found unmarked gap of %.1fh from %s to %s",
-                iteration,
-                longest_gap["duration"].total_seconds() / 3600,
-                longest_gap["start"].strftime("%d %H:%M"),
-                longest_gap["end"].strftime("%d %H:%M"),
-            )
-
-            # Find highest priced unmarked slot in this gap
-            gap_slots = [
-                ps for ps in price_slots
-                if ps.status == SlotStatus.UNMARKED
-                and ps.start >= longest_gap["start"]
-                and ps.start < longest_gap["end"]
-            ]
-
-            if not gap_slots:
-                break
-
-            peak_slot = max(gap_slots, key=lambda x: x.price)
-            _LOGGER.debug(
-                "Peak price in gap: %s at %.3f",
-                peak_slot.start.strftime("%d %H:%M"), peak_slot.price
-            )
-
-            # Center a cooling interval of heating_frequency_hours around the peak
-            half_interval = timedelta(hours=heating_frequency_hours / 2)
-            cooling_start = peak_slot.start - half_interval
-            cooling_end = peak_slot.start + half_interval
-
-            # Mark slots in the cooling interval
-            for ps in price_slots:
-                if (ps.status == SlotStatus.UNMARKED and
-                    ps.start >= cooling_start and ps.start < cooling_end):
-                    ps.status = SlotStatus.COOLING
-
-            # Determine data boundaries
-            data_start = price_slots[0].start
-            data_end = price_slots[-1].end
-
-            # Calculate heating periods on both sides
-            heating_before_end = cooling_start
-            heating_before_start = heating_before_end - duration
-            heating_after_start = cooling_end
-            heating_after_end = heating_after_start + duration
-
-            # Check if heating periods fall outside data range
-            can_heat_before = heating_before_start >= data_start
-            can_heat_after = heating_after_end <= data_end
-
-            if can_heat_before and can_heat_after:
-                # Normal case - place heating on both sides
-                self._mark_heating_period(price_slots, heating_before_start, heating_before_end)
-                self._mark_heating_period(price_slots, heating_after_start, heating_after_end)
-            elif can_heat_before and not can_heat_after:
-                # Can't heat after - extend heating before to compensate
-                extended_before_start = heating_before_end - (duration * 2)
-                _LOGGER.debug(
-                    "Peak near end of data, extending heating before: %s to %s",
-                    extended_before_start.strftime("%d %H:%M"),
-                    heating_before_end.strftime("%d %H:%M")
-                )
-                self._mark_heating_period(price_slots, extended_before_start, heating_before_end)
-            elif not can_heat_before and can_heat_after:
-                # Can't heat before - extend heating after to compensate
-                extended_after_end = heating_after_start + (duration * 2)
-                _LOGGER.debug(
-                    "Peak near start of data, extending heating after: %s to %s",
-                    heating_after_start.strftime("%d %H:%M"),
-                    extended_after_end.strftime("%d %H:%M")
-                )
-                self._mark_heating_period(price_slots, heating_after_start, extended_after_end)
-            else:
-                # Can't heat on either side - just mark what we can
-                _LOGGER.warning(
-                    "Peak at %s: cannot place heating on either side of cooling interval",
-                    peak_slot.start.strftime("%d %H:%M")
-                )
-                self._mark_heating_period(price_slots, heating_before_start, heating_before_end)
-                self._mark_heating_period(price_slots, heating_after_start, heating_after_end)
-
-        # Convert marked slots to HeatingSlot objects
-        slots = self._create_heating_slots(price_slots)
-
-        _LOGGER.debug("Final schedule: %d heating slots", len(slots))
-        for slot in slots:
-            _LOGGER.debug(
-                "  %s to %s (%s)",
-                slot.start.strftime("%Y-%m-%d %H:%M"),
-                slot.end.strftime("%Y-%m-%d %H:%M"),
-                slot.reason,
-            )
-
-        return slots
-
-    def calculate_schedule_peak_avoidance(
-        self,
-        today_prices: list[float],
-        tomorrow_prices: list[float] | None,
-        num_peaks: int,
-        peak_cooling_time_minutes: float,
-        price_threshold: float,
-        high_price_threshold: float,
-    ) -> list[HeatingSlot]:
-        """
-        Calculate heating schedule using peak avoidance algorithm.
-
-        Algorithm:
-        1. Build price slots from price data
-        2. Find the N highest-priced slots
-        3. Center a cooling zone of peak_cooling_time_minutes around each peak
-        4. Apply threshold rules: always heat below price_threshold,
-           never heat above high_price_threshold
-        5. Mark all remaining slots as HEATING
-        """
-        now = dt_util.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        slots_per_hour = self._detect_slots_per_hour(today_prices, tomorrow_prices)
-        slot_duration = timedelta(minutes=60 // slots_per_hour)
-
-        _LOGGER.debug(
-            "Peak avoidance: %d slots/hour (%d min intervals), %d peaks to avoid",
-            slots_per_hour, 60 // slots_per_hour, num_peaks
-        )
-
-        price_slots = self._build_price_slots(
-            today_prices, tomorrow_prices, today_start, now, slot_duration, slots_per_hour
-        )
-
-        if not price_slots:
-            _LOGGER.warning("No price data available for scheduling")
-            return []
-
-        # Step 1: Find the N highest-priced slots
-        sorted_by_price = sorted(price_slots, key=lambda x: x.price, reverse=True)
-        peak_slots = sorted_by_price[:num_peaks]
-
-        _LOGGER.debug(
-            "Top %d peaks: %s",
-            num_peaks,
-            [(ps.start.strftime("%d %H:%M"), ps.price) for ps in peak_slots],
-        )
-
-        # Step 2: Center a cooling zone of peak_cooling_time_minutes around each peak
-        half_duration = timedelta(minutes=peak_cooling_time_minutes / 2)
-
-        for peak in peak_slots:
-            cooling_start = peak.start - half_duration
-            cooling_end = peak.start + peak.duration + half_duration
-
-            for ps in price_slots:
-                if ps.start < cooling_end and ps.end > cooling_start:
-                    if ps.status == SlotStatus.UNMARKED:
-                        ps.status = SlotStatus.COOLING
-
-        # Step 3: Apply threshold rules
-        for ps in price_slots:
-            if ps.price < price_threshold:
-                ps.status = SlotStatus.HEATING
-            elif ps.status == SlotStatus.UNMARKED and ps.price > high_price_threshold:
-                ps.status = SlotStatus.COOLING
-
-        # Step 4: Mark all remaining unmarked slots as HEATING
-        for ps in price_slots:
-            if ps.status == SlotStatus.UNMARKED:
-                ps.status = SlotStatus.HEATING
-
-        # Convert to HeatingSlot objects
-        slots = self._create_heating_slots(price_slots)
-
-        _LOGGER.debug("Peak avoidance schedule: %d heating slots", len(slots))
-        for slot in slots:
-            _LOGGER.debug(
-                "  %s to %s (%s)",
-                slot.start.strftime("%Y-%m-%d %H:%M"),
-                slot.end.strftime("%Y-%m-%d %H:%M"),
-                slot.reason,
-            )
-
-        return slots
-
     def calculate_schedule_price_proportional(
         self,
         today_prices: list[float],
@@ -341,6 +60,7 @@ class SpaHeatingScheduler:
         max_temperature: float,
         min_temperature: float,
         lookahead_hours: int,
+        price_window_hours: int = 0,
     ) -> list[HeatingSlot]:
         """
         Calculate heating schedule using price proportional algorithm.
@@ -348,6 +68,9 @@ class SpaHeatingScheduler:
         Maps electricity prices to target temperatures continuously:
         cheapest price -> max_temperature, most expensive -> min_temperature.
         Includes a lookahead boost to pre-heat before expensive periods.
+
+        price_window_hours controls the rolling window for min/max price:
+        0 = use all available prices (global), >0 = rolling window of N hours.
         """
         now = dt_util.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -357,9 +80,10 @@ class SpaHeatingScheduler:
 
         _LOGGER.debug(
             "Price proportional: %d slots/hour (%d min intervals), "
-            "temp range=%.1f-%.1f°C, lookahead=%dh",
+            "temp range=%.1f-%.1f°C, lookahead=%dh, price_window=%dh",
             slots_per_hour, 60 // slots_per_hour,
             min_temperature, max_temperature, lookahead_hours,
+            price_window_hours,
         )
 
         price_slots = self._build_price_slots(
@@ -370,27 +94,30 @@ class SpaHeatingScheduler:
             _LOGGER.warning("No price data available for scheduling")
             return []
 
-        # Find global min/max price
-        all_prices = [ps.price for ps in price_slots]
-        min_price = min(all_prices)
-        max_price = max(all_prices)
-        price_range = max_price - min_price
+        use_rolling_window = price_window_hours > 0
+        window_duration = timedelta(hours=price_window_hours)
 
-        _LOGGER.debug(
-            "Price range: %.3f to %.3f (range=%.3f)",
-            min_price, max_price, price_range,
-        )
+        if not use_rolling_window:
+            # Global min/max price
+            all_prices = [ps.price for ps in price_slots]
+            global_min_price = min(all_prices)
+            global_max_price = max(all_prices)
+            global_price_range = global_max_price - global_min_price
 
-        if price_range < 0.001:
-            # All prices are the same - use midpoint temperature
-            mid_temp = round((max_temperature + min_temperature) / 2 * 2) / 2
-            _LOGGER.debug("Flat prices, using midpoint temperature %.1f°C", mid_temp)
-            return [HeatingSlot(
-                start=price_slots[0].start,
-                end=price_slots[-1].end,
-                reason="scheduled",
-                target_temperature=mid_temp,
-            )]
+            _LOGGER.debug(
+                "Global price range: %.3f to %.3f (range=%.3f)",
+                global_min_price, global_max_price, global_price_range,
+            )
+
+            if global_price_range < 0.001:
+                mid_temp = round((max_temperature + min_temperature) / 2 * 2) / 2
+                _LOGGER.debug("Flat prices, using midpoint temperature %.1f°C", mid_temp)
+                return [HeatingSlot(
+                    start=price_slots[0].start,
+                    end=price_slots[-1].end,
+                    reason="scheduled",
+                    target_temperature=mid_temp,
+                )]
 
         temp_range = max_temperature - min_temperature
         lookahead_duration = timedelta(hours=lookahead_hours)
@@ -398,9 +125,34 @@ class SpaHeatingScheduler:
         # Calculate target temperature for each slot
         slot_temps: list[tuple[PriceSlot, float]] = []
         for i, ps in enumerate(price_slots):
-            # Base temperature from price ratio
-            price_ratio = (ps.price - min_price) / price_range  # 0=cheapest, 1=most expensive
-            base_temp = max_temperature - price_ratio * temp_range
+            # Determine price range for this slot
+            if use_rolling_window:
+                # Rolling window: centered on current slot
+                half_window = window_duration / 2
+                window_start = ps.start - half_window
+                window_end = ps.start + half_window
+                window_slots = [
+                    ws for ws in price_slots
+                    if ws.start >= window_start and ws.start < window_end
+                ]
+                if not window_slots:
+                    window_slots = [ps]
+                window_prices = [ws.price for ws in window_slots]
+                min_price = min(window_prices)
+                max_price = max(window_prices)
+                price_range = max_price - min_price
+            else:
+                min_price = global_min_price
+                max_price = global_max_price
+                price_range = global_price_range
+
+            if price_range < 0.001:
+                # Flat prices in this window - use midpoint
+                base_temp = (max_temperature + min_temperature) / 2
+            else:
+                # Base temperature from price ratio
+                price_ratio = (ps.price - min_price) / price_range  # 0=cheapest, 1=most expensive
+                base_temp = max_temperature - price_ratio * temp_range
 
             # Lookahead boost: compute avg price of next lookahead_hours
             lookahead_end = ps.start + lookahead_duration
@@ -409,7 +161,7 @@ class SpaHeatingScheduler:
                 if future_ps.start > ps.start and future_ps.start < lookahead_end
             ]
 
-            if upcoming_slots:
+            if upcoming_slots and price_range >= 0.001:
                 upcoming_avg = sum(s.price for s in upcoming_slots) / len(upcoming_slots)
                 lookahead_factor = max(0.0, min(1.0, (upcoming_avg - ps.price) / price_range))
                 boost = lookahead_factor * (max_temperature - base_temp) * 0.5
@@ -547,92 +299,3 @@ class SpaHeatingScheduler:
         price_slots.sort(key=lambda x: x.start)
 
         return price_slots
-
-    def _find_longest_unmarked_gap(
-        self, price_slots: list[PriceSlot]
-    ) -> dict | None:
-        """Find the longest continuous gap of unmarked slots."""
-        if not price_slots:
-            return None
-
-        longest_gap = None
-        current_gap_start = None
-        current_gap_end = None
-
-        for ps in price_slots:
-            if ps.status == SlotStatus.UNMARKED:
-                if current_gap_start is None:
-                    current_gap_start = ps.start
-                current_gap_end = ps.end
-            else:
-                # Gap ended, check if it's the longest
-                if current_gap_start is not None:
-                    gap_duration = current_gap_end - current_gap_start
-                    if longest_gap is None or gap_duration > longest_gap["duration"]:
-                        longest_gap = {
-                            "start": current_gap_start,
-                            "end": current_gap_end,
-                            "duration": gap_duration,
-                        }
-                current_gap_start = None
-                current_gap_end = None
-
-        # Check final gap
-        if current_gap_start is not None:
-            gap_duration = current_gap_end - current_gap_start
-            if longest_gap is None or gap_duration > longest_gap["duration"]:
-                longest_gap = {
-                    "start": current_gap_start,
-                    "end": current_gap_end,
-                    "duration": gap_duration,
-                }
-
-        return longest_gap
-
-    def _mark_heating_period(
-        self,
-        price_slots: list[PriceSlot],
-        start: datetime,
-        end: datetime,
-    ) -> None:
-        """Mark slots in a time range as HEATING (if not already COOLING)."""
-        for ps in price_slots:
-            # Check if this slot overlaps with the heating period
-            if ps.start < end and ps.end > start:
-                if ps.status != SlotStatus.COOLING:
-                    ps.status = SlotStatus.HEATING
-
-    def _create_heating_slots(
-        self, price_slots: list[PriceSlot]
-    ) -> list[HeatingSlot]:
-        """Create HeatingSlot objects from consecutive HEATING slots."""
-        slots: list[HeatingSlot] = []
-
-        current_start = None
-        current_end = None
-
-        for ps in price_slots:
-            if ps.status == SlotStatus.HEATING:
-                if current_start is None:
-                    current_start = ps.start
-                current_end = ps.end
-            else:
-                # Heating block ended
-                if current_start is not None:
-                    slots.append(HeatingSlot(
-                        start=current_start,
-                        end=current_end,
-                        reason="scheduled",
-                    ))
-                current_start = None
-                current_end = None
-
-        # Don't forget the last block
-        if current_start is not None:
-            slots.append(HeatingSlot(
-                start=current_start,
-                end=current_end,
-                reason="scheduled",
-            ))
-
-        return slots
