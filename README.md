@@ -1,7 +1,7 @@
 <p align="center"><img src="https://github.com/zteifel/smart-spa-heating/blob/main/logo_small.png" alt="Smart Spa Heating" width="400"><img src="https://github.com/zteifel/esphome-gecko/blob/master/logo_small.png" alt="Smart Spa Heating" width="400">
 </p>
 
-A Home Assistant custom integration that intelligently schedules spa/hot tub heating based on electricity prices. It optimizes heating times to avoid expensive peak hours while ensuring your spa is always ready when you need it.
+A Home Assistant custom integration that intelligently controls spa/hot tub heating based on electricity prices. It treats your spa water as a thermal battery — heating more when electricity is cheap and coasting when it's expensive — using a continuous price-to-temperature mapping.
 
 <a href="https://www.buymeacoffee.com/zteifel" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
@@ -18,11 +18,12 @@ A Home Assistant custom integration that intelligently schedules spa/hot tub hea
 
 ## Features
 
-- **Price-aware scheduling** with 15-minute granularity
-- **Automatic peak avoidance** - identifies expensive periods and schedules around them
-- **Threshold-based heating** - always heat when prices are low, never heat when prices are high
-- **Manual override detection** - respects manual temperature changes
-- **Force controls** - manually trigger heating on/off when needed
+- **Price-proportional heating** — continuously maps electricity prices to target temperatures
+- **Pre-heat boost** — looks ahead to detect upcoming expensive periods and stores extra heat in advance
+- **Configurable price window** — choose between global or rolling window for price range calculation
+- **15-minute granularity** — works with both hourly and 15-minute price data
+- **Manual override detection** — respects manual temperature changes
+- **Force controls** — manually trigger max/min temperature when needed
 
 ## Dependencies
 
@@ -38,30 +39,29 @@ An entity that provides electricity prices with `today` and `tomorrow` attribute
 
 ### Climate Entity
 
-A climate entity that controls your spa/hot tub heating. The integration controls the spa by setting the target temperature:
-- **Heating temperature** when actively heating
-- **Idle temperature** when not heating
+A climate entity that controls your spa/hot tub heating. The integration controls the spa by setting the target temperature, which varies continuously between a configured min and max based on electricity prices.
 
 ## Algorithm
 
-The scheduling algorithm works as follows:
+The price proportional algorithm maps electricity prices to target temperatures continuously:
 
-1. **Mark cheap hours as HEATING** - All time slots where the price is below the *Price Threshold* are marked for heating. When electricity is cheap, heat as much as possible.
+1. **Build price slots** from today's and tomorrow's price data (supports 15-minute and hourly intervals).
 
-2. **Mark expensive hours as COOLING** - All time slots where the price is above the *High Price Threshold* are marked as cooling (no heating allowed).
+2. **Determine price range** — either globally across all available data, or using a rolling window of configurable hours centered on each slot.
 
-3. **Peak avoidance loop** - For any remaining unmarked time gaps longer than *Heating Frequency*:
-   - Find the highest price point in the gap
-   - Center a cooling interval of *Heating Frequency* hours around that peak
-   - Place a heating period of *Heating Duration* on each side of the cooling interval
-   - If a heating period would fall outside available data, extend the other side to compensate
+3. **Map price to temperature** for each slot:
+   - Cheapest price → **Max Temperature** (store heat)
+   - Most expensive price → **Min Temperature** (coast)
+   - Prices in between are mapped linearly
 
-4. **Repeat** until no unmarked gaps exceed the heating frequency limit.
+4. **Lookahead boost** — for each slot, compute the average price of the next N hours. If upcoming prices are significantly higher than the current price, boost the target temperature to pre-heat before the expensive period. The boost can add up to 50% of the remaining headroom to max temperature.
+
+5. **Round and merge** — target temperatures are rounded to the nearest 0.5°C (matching typical spa hardware precision), then consecutive slots with the same temperature are merged to reduce service calls.
 
 This ensures:
-- Maximum heating during cheap periods
-- No heating during expensive peaks
-- Regular heating intervals to maintain spa temperature
+- Maximum heat storage during cheap periods
+- Minimal heating during expensive periods
+- Smooth pre-heating transitions before price spikes
 
 ## Settings
 
@@ -69,13 +69,11 @@ All settings can be adjusted in real-time through Home Assistant number entities
 
 | Setting | Range | Default | Description |
 |---------|-------|---------|-------------|
-| **Heating Frequency** | 1-48 hours | 3 | Maximum time between heating sessions. The algorithm ensures heating occurs at least this often. |
-| **Heating Duration** | 15-240 minutes | 45 | Duration of each scheduled heating session. |
-| **Price Threshold** | any | 1.5 | Always heat when price is below this value. Uses same unit as your price entity. |
-| **High Price Threshold** | any | 3.0 | Never heat when price is above this value. Uses same unit as your price entity. |
-| **Heating Temperature** | 20-42°C | 37.5 | Target temperature when actively heating. |
-| **Idle Temperature** | 5-42°C | 35 | Target temperature when not heating (maintains minimal heating). |
-| **Manual Override Duration** | 1-12 hours | 3 | How long to respect manual temperature changes before resuming automatic control. |
+| **Max Temperature** | 20–42°C | 40 | Target temperature during the cheapest electricity prices. |
+| **Min Temperature** | 5–42°C | 34 | Target temperature during the most expensive electricity prices. |
+| **Lookahead Hours** | 1–12 hours | 3 | How far ahead to look for upcoming expensive prices. Triggers pre-heating when future prices are higher than current. |
+| **Price Window Hours** | 0–48 hours | 0 | Rolling window for calculating the price min/max range. `0` uses all available price data (global). A smaller window makes the temperature more responsive to local price variations. |
+| **Manual Override Duration** | 1–12 hours | 3 | How long to respect manual temperature changes before resuming automatic control. |
 
 ## Installation
 
@@ -130,7 +128,7 @@ yaxis:
   - id: temp
     opposite: true
     min: 30
-    max: 40
+    max: 42
     align_to: 100
     apex_config:
       tickAmount: 4
@@ -158,7 +156,7 @@ series:
         ...td.map((data, index) => {
           return [data["start"], data["value"]];
         }),
-        ...tm.map((data, index) => { 
+        ...tm.map((data, index) => {
           return [data["start"], data["value"]];
         })
       ]; return [...dataset, repeatLast(dataset)];
@@ -171,9 +169,11 @@ series:
     color_threshold:
       - value: -2
         color: white
-      - value: 35
+      - value: 34
         color: blue
       - value: 37
+        color: orange
+      - value: 40
         color: red
     name: Planned Temperature
 apex_config:
@@ -203,25 +203,48 @@ series:
     name: Planned Temperature
     type: line
     stroke_width: 2
+    curve: stepline
     data_generator: |
       return entity.attributes.data || [];
 ```
 
 ## Entities Created
 
+### Sensors
+
+| Entity | Description |
+|--------|-------------|
+| `sensor.smart_spa_heating_next_heating` | Next scheduled temperature change |
+| `sensor.smart_spa_heating_heating_schedule` | Full schedule with all slots and target temperatures |
+| `sensor.smart_spa_heating_current_price` | Current electricity price |
+| `sensor.smart_spa_heating_planned_temperature` | Current planned temperature with timeline data for ApexCharts |
+| `sensor.smart_spa_heating_manual_override_remaining` | Time remaining in manual override |
+
+### Binary Sensors
+
+| Entity | Description |
+|--------|-------------|
+| `binary_sensor.smart_spa_heating_heating_active` | Whether heating is currently active (temperature above min) |
+| `binary_sensor.smart_spa_heating_manual_override_active` | Whether manual override is active |
+
+### Controls
+
 | Entity | Type | Description |
 |--------|------|-------------|
 | `switch.smart_spa_heating_smart_heating` | Switch | Master on/off for automatic heating |
-| `sensor.smart_spa_heating_next_heating` | Sensor | Next scheduled heating start time |
-| `sensor.smart_spa_heating_heating_schedule` | Sensor | JSON of all scheduled slots |
-| `sensor.smart_spa_heating_current_price` | Sensor | Current electricity price |
-| `sensor.smart_spa_heating_planned_temperature` | Sensor | For ApexCharts visualization |
-| `binary_sensor.smart_spa_heating_heating_active` | Binary Sensor | Whether heating is currently active |
-| `binary_sensor.smart_spa_heating_manual_override_active` | Binary Sensor | Whether manual override is active |
-| `button.smart_spa_heating_force_heat_on` | Button | Force start heating now |
-| `button.smart_spa_heating_force_heat_off` | Button | Force stop heating now |
+| `button.smart_spa_heating_force_heat_on` | Button | Force max temperature immediately |
+| `button.smart_spa_heating_force_heat_off` | Button | Force min temperature immediately |
 | `button.smart_spa_heating_clear_manual_override` | Button | Clear manual override early |
-| `number.smart_spa_heating_*` | Number | All configurable settings |
+
+### Settings (Number Entities)
+
+| Entity | Description |
+|--------|-------------|
+| `number.smart_spa_heating_max_temperature` | Max temperature during cheap prices (°C) |
+| `number.smart_spa_heating_min_temperature` | Min temperature during expensive prices (°C) |
+| `number.smart_spa_heating_lookahead_hours` | Hours to look ahead for pre-heat boost |
+| `number.smart_spa_heating_price_window_hours` | Rolling window for price range (0 = all prices) |
+| `number.smart_spa_heating_manual_override_duration` | Manual override duration (hours) |
 
 ## License
 
